@@ -1,0 +1,155 @@
+package ff
+
+import (
+	"strings"
+	"time"
+
+	"github.com/mmcdole/gofeed"
+)
+
+// Equal
+func equal(param string, attr string) bool {
+	return attr == param
+}
+
+func TitleEqual(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return equal(param, i.Title)
+	}
+}
+func DescriptionEqual(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return equal(param, i.Description)
+	}
+}
+func LinkEqual(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return equal(param, i.Link)
+	}
+}
+func AuthorEqual(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return equal(param, i.Author.Name)
+	}
+}
+
+// NotEqual
+func notEqual(param string, attr string) bool {
+	return attr != param
+}
+
+func TitleNotEqual(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return notEqual(param, i.Title)
+	}
+}
+func DescriptionNotEqual(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return notEqual(param, i.Description)
+	}
+}
+func LinkNotEqual(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return notEqual(param, i.Link)
+	}
+}
+func AuthorNotEqual(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return notEqual(param, i.Author.Name)
+	}
+}
+
+// Contains
+func contains(param string, attr string) bool {
+	return strings.Contains(attr, param)
+}
+
+func TitleContains(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return contains(param, i.Title)
+	}
+}
+func DescriptionContains(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return contains(param, i.Description)
+	}
+}
+func LinkContains(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return contains(param, i.Link)
+	}
+}
+func AuthorContains(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return contains(param, i.Author.Name)
+	}
+}
+
+// NotContains
+func notContains(param string, attr string) bool {
+	return !strings.Contains(attr, param)
+}
+
+func TitleNotContains(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return notContains(param, i.Title)
+	}
+}
+func DescriptionNotContains(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return notContains(param, i.Description)
+	}
+}
+func LinkNotContains(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return notContains(param, i.Link)
+	}
+}
+func AuthorNotContains(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return notContains(param, i.Author.Name)
+	}
+}
+
+//
+func From(param string, attr *time.Time) bool {
+	parsedParam, err := time.Parse(time.RFC3339, param)
+	// if parsed error, ignore this params
+	if err != nil {
+		return true
+	}
+	return parsedParam.Before(*attr)
+}
+
+func UpdateAtFrom(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return From(param, i.UpdatedParsed)
+	}
+}
+func PublishedAtFrom(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return From(param, i.PublishedParsed)
+	}
+}
+
+//
+func Latest(param string, attr *time.Time) bool {
+	return From(time.Now().AddDate(0, 0, -30).Format(time.RFC3339), attr)
+}
+
+func UpdateAtLatest(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return Latest(param, i.UpdatedParsed)
+	}
+}
+func PublishedAtLatest(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return Latest(param, i.PublishedParsed)
+	}
+}
+
+func NilFilter(param string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return true
+	}
+}
