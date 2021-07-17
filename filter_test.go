@@ -2,6 +2,7 @@ package ff
 
 import (
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -85,5 +86,71 @@ func TestCreateFilter(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestAuthorMute(t *testing.T) {
+	testUpdated := time.Date(2021, time.July, 11, 0, 0, 0, 0, time.UTC)
+	testPublished := time.Date(2021, time.July, 1, 0, 0, 0, 0, time.UTC)
+	testData := &gofeed.Item{
+		Title:           "title",
+		Description:     "description",
+		Link:            "https://github.com/nakatanakatana/ff",
+		Author:          &gofeed.Person{Name: "aname", Email: "aname@nakatanakatana.dev"},
+		UpdatedParsed:   &testUpdated,
+		PublishedParsed: &testPublished,
+	}
+
+	for _, tt := range []struct {
+		targets []string
+		expect  bool
+	}{
+		{[]string{}, true},
+		{[]string{"title"}, false},
+		{[]string{"description"}, false},
+		{[]string{"github"}, false},
+		{[]string{"name"}, false},
+		{[]string{"desc"}, false},
+		{[]string{"hoge", "fuga", "title"}, false},
+		{[]string{"hoge", "name", "title"}, false},
+	} {
+		tt := tt
+		t.Run(strings.Join(tt.targets, ",")+":"+strconv.FormatBool(tt.expect), func(t *testing.T) {
+			f := CreateAuthorMute(tt.targets)("")
+			if f(testData) != tt.expect {
+				t.Fail()
+			}
+		})
+	}
+}
+
+func TestLinkMute(t *testing.T) {
+	testUpdated := time.Date(2021, time.July, 11, 0, 0, 0, 0, time.UTC)
+	testPublished := time.Date(2021, time.July, 1, 0, 0, 0, 0, time.UTC)
+	testData := &gofeed.Item{
+		Title:           "title",
+		Description:     "description",
+		Link:            "https://github.com/nakatanakatana/ff",
+		Author:          &gofeed.Person{Name: "aname", Email: "aname@nakatanakatana.dev"},
+		UpdatedParsed:   &testUpdated,
+		PublishedParsed: &testPublished,
+	}
+
+	for _, tt := range []struct {
+		targets []string
+		expect  bool
+	}{
+		{[]string{}, true},
+		{[]string{"git"}, false},
+		{[]string{"github.com"}, false},
+		{[]string{"abc", "def", "ghi"}, true},
+		{[]string{"abc", "def", "git"}, false},
+	} {
+		tt := tt
+		t.Run(strings.Join(tt.targets, ",")+":"+strconv.FormatBool(tt.expect), func(t *testing.T) {
+			f := CreateLinkMute(tt.targets)("")
+			if f(testData) != tt.expect {
+				t.Fail()
+			}
+		})
+	}
 }

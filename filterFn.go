@@ -1,11 +1,30 @@
 package ff
 
 import (
+	"os"
 	"strings"
 	"time"
 
 	"github.com/mmcdole/gofeed"
 )
+
+var muteAuthors []string
+var muteURLs []string
+
+func init() {
+	parseMuteParams()
+}
+
+func parseMuteParams() {
+	muteAuthorsStr := os.Getenv("MUTE_AUTHORS")
+	if muteAuthorsStr != "" {
+		muteAuthors = strings.Split(muteAuthorsStr, ",")
+	}
+	muteURLsStr := os.Getenv("MUTE_URLS")
+	if muteURLsStr != "" {
+		muteURLs = strings.Split(muteURLsStr, ",")
+	}
+}
 
 // Equal
 func equal(param string, attr string) bool {
@@ -153,3 +172,35 @@ func NilFilter(param string) FilterFunc {
 		return true
 	}
 }
+
+// mute
+func Mute(params []string, attr string) bool {
+	for _, p := range params {
+		if strings.Contains(attr, p) {
+			return false
+		}
+	}
+	return true
+}
+
+func CreateAuthorMute(targets []string) filterFuncCreator {
+	return func(_ string) FilterFunc {
+		return func(i *gofeed.Item) bool {
+			return Mute(targets, i.Author.Name) &&
+				Mute(targets, i.Author.Email) &&
+				Mute(targets, i.Link) &&
+				Mute(targets, i.Title) &&
+				Mute(targets, i.Description)
+		}
+	}
+}
+var AuthorMute = CreateAuthorMute(muteAuthors)
+
+func CreateLinkMute(targets []string) filterFuncCreator {
+	return func(_ string) FilterFunc {
+		return func(i *gofeed.Item) bool {
+			return Mute(targets, i.Link)
+		}
+	}
+}
+var LinkMute = CreateLinkMute(muteURLs)
