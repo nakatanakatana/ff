@@ -43,4 +43,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - run: go test ./... -v
+      - run: go test ./... -v -coverprofile=coverage.txt -covermode=atomic
+      - uses: codecov/codecov-action@v1
+        with:
+          files: ./coverage.txt
+          flags: unittests
