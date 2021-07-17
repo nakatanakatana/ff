@@ -86,6 +86,46 @@ func TestCreateFilter(t *testing.T) {
 			}
 		})
 	}
+
+	testDataHasNil := &gofeed.Item{
+		Title:       "title",
+		Description: "description",
+		Link:        "https://github.com/nakatanakatana/ff",
+	}
+
+	for _, tt := range []struct {
+		key    string
+		value  string
+		expect bool
+	}{
+		// equal
+		{key: "author.equal", value: "aname", expect: false},
+		{key: "author.equal", value: "other_author_name", expect: false},
+		// not_equal
+		{key: "author.not_equal", value: "aname", expect: true},
+		{key: "author.not_equal", value: "other_author_name", expect: true},
+		// contains
+		{key: "author.contains", value: "name", expect: false},
+		{key: "author.contains", value: "names", expect: false},
+		// not_contains
+		{key: "author.not_contains", value: "name", expect: true},
+		{key: "author.not_contains", value: "names", expect: true},
+		// from
+		{key: "updated_at.from", value: "invalid date", expect: true},
+		{key: "updated_at.from", value: "2021-07-07T12:00:00+09:00", expect: false},
+		{key: "updated_at.from", value: "2021-07-14T12:00:00+09:00", expect: false},
+		{key: "published_at.from", value: "invalid date", expect: true},
+		{key: "published_at.from", value: "2021-06-30T12:00:00+09:00", expect: false},
+		{key: "published_at.from", value: "2021-07-07T12:00:00+09:00", expect: false},
+	} {
+		tt := tt
+		t.Run("hasNil: "+tt.key+"="+tt.value+":"+strconv.FormatBool(tt.expect), func(t *testing.T) {
+			f := CreateFilter(tt.key, tt.value)
+			if f(testDataHasNil) != tt.expect {
+				t.Fail()
+			}
+		})
+	}
 }
 
 func TestAuthorMute(t *testing.T) {
@@ -117,6 +157,34 @@ func TestAuthorMute(t *testing.T) {
 		t.Run(strings.Join(tt.targets, ",")+":"+strconv.FormatBool(tt.expect), func(t *testing.T) {
 			f := CreateAuthorMute(tt.targets)("")
 			if f(testData) != tt.expect {
+				t.Fail()
+			}
+		})
+	}
+
+	testDataHasNil := &gofeed.Item{
+		Title:       "title",
+		Description: "description",
+		Link:        "https://github.com/nakatanakatana/ff",
+	}
+
+	for _, tt := range []struct {
+		targets []string
+		expect  bool
+	}{
+		{[]string{}, true},
+		{[]string{"title"}, false},
+		{[]string{"description"}, false},
+		{[]string{"github"}, false},
+		{[]string{"name"}, true},
+		{[]string{"desc"}, false},
+		{[]string{"hoge", "fuga", "title"}, false},
+		{[]string{"hoge", "name", "title"}, false},
+	} {
+		tt := tt
+		t.Run(strings.Join(tt.targets, ",")+":"+strconv.FormatBool(tt.expect), func(t *testing.T) {
+			f := CreateAuthorMute(tt.targets)("")
+			if f(testDataHasNil) != tt.expect {
 				t.Fail()
 			}
 		})

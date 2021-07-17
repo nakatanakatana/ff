@@ -48,7 +48,7 @@ func LinkEqual(param string) FilterFunc {
 }
 func AuthorEqual(param string) FilterFunc {
 	return func(i *gofeed.Item) bool {
-		return equal(param, i.Author.Name)
+		return i.Author != nil && equal(param, i.Author.Name)
 	}
 }
 
@@ -74,7 +74,7 @@ func LinkNotEqual(param string) FilterFunc {
 }
 func AuthorNotEqual(param string) FilterFunc {
 	return func(i *gofeed.Item) bool {
-		return notEqual(param, i.Author.Name)
+		return !(i.Author != nil) || notEqual(param, i.Author.Name)
 	}
 }
 
@@ -100,7 +100,7 @@ func LinkContains(param string) FilterFunc {
 }
 func AuthorContains(param string) FilterFunc {
 	return func(i *gofeed.Item) bool {
-		return contains(param, i.Author.Name)
+		return i.Author != nil && contains(param, i.Author.Name)
 	}
 }
 
@@ -126,7 +126,7 @@ func LinkNotContains(param string) FilterFunc {
 }
 func AuthorNotContains(param string) FilterFunc {
 	return func(i *gofeed.Item) bool {
-		return notContains(param, i.Author.Name)
+		return !(i.Author != nil) || notContains(param, i.Author.Name)
 	}
 }
 
@@ -136,6 +136,9 @@ func From(param string, attr *time.Time) bool {
 	// if parsed error, ignore this params
 	if err != nil {
 		return true
+	}
+	if !(attr != nil) {
+		return false
 	}
 	return parsedParam.Before(*attr)
 }
@@ -186,14 +189,15 @@ func Mute(params []string, attr string) bool {
 func CreateAuthorMute(targets []string) filterFuncCreator {
 	return func(_ string) FilterFunc {
 		return func(i *gofeed.Item) bool {
-			return Mute(targets, i.Author.Name) &&
-				Mute(targets, i.Author.Email) &&
+			return (!(i.Author != nil) || Mute(targets, i.Author.Name)) &&
+				(!(i.Author != nil) || Mute(targets, i.Author.Email)) &&
 				Mute(targets, i.Link) &&
 				Mute(targets, i.Title) &&
 				Mute(targets, i.Description)
 		}
 	}
 }
+
 var AuthorMute = CreateAuthorMute(muteAuthors)
 
 func CreateLinkMute(targets []string) filterFuncCreator {
@@ -203,4 +207,5 @@ func CreateLinkMute(targets []string) filterFuncCreator {
 		}
 	}
 }
+
 var LinkMute = CreateLinkMute(muteURLs)
