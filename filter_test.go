@@ -10,7 +10,6 @@ import (
 )
 
 func TestCreateFilter(t *testing.T) {
-
 	t.Run("if invalid key, return nil", func(t *testing.T) {
 		f := CreateFilter("invalidkey", "value")
 		if f != nil {
@@ -20,7 +19,7 @@ func TestCreateFilter(t *testing.T) {
 
 	testUpdated := time.Date(2021, time.July, 11, 0, 0, 0, 0, time.UTC)
 	testPublished := time.Date(2021, time.July, 1, 0, 0, 0, 0, time.UTC)
-	testData := &gofeed.Item{
+	testItem := &gofeed.Item{
 		Title:           "title",
 		Description:     "description",
 		Link:            "https://github.com/nakatanakatana/ff",
@@ -81,13 +80,13 @@ func TestCreateFilter(t *testing.T) {
 		tt := tt
 		t.Run(tt.key+"="+tt.value+":"+strconv.FormatBool(tt.expect), func(t *testing.T) {
 			f := CreateFilter(tt.key, tt.value)
-			if f(testData) != tt.expect {
+			if f(testItem) != tt.expect {
 				t.Fail()
 			}
 		})
 	}
 
-	testDataHasNil := &gofeed.Item{
+	testItemHasNil := &gofeed.Item{
 		Title:       "title",
 		Description: "description",
 		Link:        "https://github.com/nakatanakatana/ff",
@@ -121,7 +120,7 @@ func TestCreateFilter(t *testing.T) {
 		tt := tt
 		t.Run("hasNil: "+tt.key+"="+tt.value+":"+strconv.FormatBool(tt.expect), func(t *testing.T) {
 			f := CreateFilter(tt.key, tt.value)
-			if f(testDataHasNil) != tt.expect {
+			if f(testItemHasNil) != tt.expect {
 				t.Fail()
 			}
 		})
@@ -131,7 +130,7 @@ func TestCreateFilter(t *testing.T) {
 func TestAuthorMute(t *testing.T) {
 	testUpdated := time.Date(2021, time.July, 11, 0, 0, 0, 0, time.UTC)
 	testPublished := time.Date(2021, time.July, 1, 0, 0, 0, 0, time.UTC)
-	testData := &gofeed.Item{
+	testItem := &gofeed.Item{
 		Title:           "title",
 		Description:     "description",
 		Link:            "https://github.com/nakatanakatana/ff",
@@ -156,13 +155,13 @@ func TestAuthorMute(t *testing.T) {
 		tt := tt
 		t.Run(strings.Join(tt.targets, ",")+":"+strconv.FormatBool(tt.expect), func(t *testing.T) {
 			f := CreateAuthorMute(tt.targets)("")
-			if f(testData) != tt.expect {
+			if f(testItem) != tt.expect {
 				t.Fail()
 			}
 		})
 	}
 
-	testDataHasNil := &gofeed.Item{
+	testItemHasNil := &gofeed.Item{
 		Title:       "title",
 		Description: "description",
 		Link:        "https://github.com/nakatanakatana/ff",
@@ -184,7 +183,7 @@ func TestAuthorMute(t *testing.T) {
 		tt := tt
 		t.Run(strings.Join(tt.targets, ",")+":"+strconv.FormatBool(tt.expect), func(t *testing.T) {
 			f := CreateAuthorMute(tt.targets)("")
-			if f(testDataHasNil) != tt.expect {
+			if f(testItemHasNil) != tt.expect {
 				t.Fail()
 			}
 		})
@@ -194,7 +193,7 @@ func TestAuthorMute(t *testing.T) {
 func TestLinkMute(t *testing.T) {
 	testUpdated := time.Date(2021, time.July, 11, 0, 0, 0, 0, time.UTC)
 	testPublished := time.Date(2021, time.July, 1, 0, 0, 0, 0, time.UTC)
-	testData := &gofeed.Item{
+	testItem := &gofeed.Item{
 		Title:           "title",
 		Description:     "description",
 		Link:            "https://github.com/nakatanakatana/ff",
@@ -216,7 +215,44 @@ func TestLinkMute(t *testing.T) {
 		tt := tt
 		t.Run(strings.Join(tt.targets, ",")+":"+strconv.FormatBool(tt.expect), func(t *testing.T) {
 			f := CreateLinkMute(tt.targets)("")
-			if f(testData) != tt.expect {
+			if f(testItem) != tt.expect {
+				t.Fail()
+			}
+		})
+	}
+}
+
+func TestFilter(t *testing.T) {
+	testUpdated := time.Date(2021, time.July, 11, 0, 0, 0, 0, time.UTC)
+	testPublished := time.Date(2021, time.July, 1, 0, 0, 0, 0, time.UTC)
+	testItem := &gofeed.Item{
+		Title:           "title",
+		Description:     "description",
+		Link:            "https://github.com/nakatanakatana/ff",
+		Author:          &gofeed.Person{Name: "aname", Email: "aname@nakatanakatana.dev"},
+		UpdatedParsed:   &testUpdated,
+		PublishedParsed: &testPublished,
+	}
+	testFeed := &gofeed.Feed{
+		Items: []*gofeed.Item{testItem},
+	}
+
+	for _, tt := range []struct {
+		filters   []FilterFunc
+		expectLen int
+	}{
+		{filters: []FilterFunc{}, expectLen: 1},
+		{filters: []FilterFunc{NilFilter("")}, expectLen: 1},
+		{filters: []FilterFunc{TitleEqual("title"), DescriptionEqual("description")}, expectLen: 1},
+		{filters: []FilterFunc{TitleEqual("ti"), TitleEqual("title")}, expectLen: 0},
+	} {
+		tt := tt
+		t.Run("all filter do and condition", func(t *testing.T) {
+			result, err := Filter(testFeed, tt.filters...)
+			if err != nil {
+				t.Fail()
+			}
+			if len(result.Items) != tt.expectLen {
 				t.Fail()
 			}
 		})
