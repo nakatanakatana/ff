@@ -138,7 +138,7 @@ func From(param string, attr *time.Time) bool {
 		return true
 	}
 	if !(attr != nil) {
-		return false
+		return true
 	}
 	return parsedParam.Before(*attr)
 }
@@ -155,18 +155,23 @@ func PublishedAtFrom(param string) FilterFunc {
 }
 
 //
-func Latest(param string, attr *time.Time) bool {
+func Latest(_ string, attr *time.Time) bool {
 	return From(time.Now().AddDate(0, 0, -30).Format(time.RFC3339), attr)
 }
 
 func UpdateAtLatest(param string) FilterFunc {
 	return func(i *gofeed.Item) bool {
-		return Latest(param, i.UpdatedParsed)
+		return Latest("", i.UpdatedParsed)
 	}
 }
 func PublishedAtLatest(param string) FilterFunc {
 	return func(i *gofeed.Item) bool {
-		return Latest(param, i.PublishedParsed)
+		return Latest("", i.PublishedParsed)
+	}
+}
+func DateLatest(_ string) FilterFunc {
+	return func(i *gofeed.Item) bool {
+		return Latest("", i.UpdatedParsed) || Latest("", i.PublishedParsed)
 	}
 }
 

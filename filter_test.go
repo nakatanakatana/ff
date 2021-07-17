@@ -112,11 +112,11 @@ func TestCreateFilter(t *testing.T) {
 		{key: "author.not_contains", value: "names", expect: true},
 		// from
 		{key: "updated_at.from", value: "invalid date", expect: true},
-		{key: "updated_at.from", value: "2021-07-07T12:00:00+09:00", expect: false},
-		{key: "updated_at.from", value: "2021-07-14T12:00:00+09:00", expect: false},
+		{key: "updated_at.from", value: "2021-07-07T12:00:00+09:00", expect: true},
+		{key: "updated_at.from", value: "2021-07-14T12:00:00+09:00", expect: true},
 		{key: "published_at.from", value: "invalid date", expect: true},
-		{key: "published_at.from", value: "2021-06-30T12:00:00+09:00", expect: false},
-		{key: "published_at.from", value: "2021-07-07T12:00:00+09:00", expect: false},
+		{key: "published_at.from", value: "2021-06-30T12:00:00+09:00", expect: true},
+		{key: "published_at.from", value: "2021-07-07T12:00:00+09:00", expect: true},
 	} {
 		tt := tt
 		t.Run("hasNil: "+tt.key+"="+tt.value+":"+strconv.FormatBool(tt.expect), func(t *testing.T) {

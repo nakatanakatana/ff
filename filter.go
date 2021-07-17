@@ -28,6 +28,7 @@ var filters map[string]filterFuncCreator = map[string]filterFuncCreator{
 	"published_at.from":        PublishedAtFrom,
 	"updated_at.latest":        UpdateAtLatest,
 	"published_at.latest":      PublishedAtLatest,
+	"latest":                   DateLatest,
 	"mute_authors":             AuthorMute,
 	"mute_urls":                LinkMute,
 }
