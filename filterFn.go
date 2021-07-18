@@ -1,30 +1,11 @@
 package ff
 
 import (
-	"os"
 	"strings"
 	"time"
 
 	"github.com/mmcdole/gofeed"
 )
-
-var muteAuthors []string
-var muteURLs []string
-
-func init() {
-	parseMuteParams()
-}
-
-func parseMuteParams() {
-	muteAuthorsStr := os.Getenv("MUTE_AUTHORS")
-	if muteAuthorsStr != "" {
-		muteAuthors = strings.Split(muteAuthorsStr, ",")
-	}
-	muteURLsStr := os.Getenv("MUTE_URLS")
-	if muteURLsStr != "" {
-		muteURLs = strings.Split(muteURLsStr, ",")
-	}
-}
 
 // Equal
 func equal(param string, attr string) bool {
@@ -202,9 +183,6 @@ func CreateAuthorMute(targets []string) filterFuncCreator {
 		}
 	}
 }
-
-var AuthorMute = CreateAuthorMute(muteAuthors)
-
 func CreateLinkMute(targets []string) filterFuncCreator {
 	return func(_ string) FilterFunc {
 		return func(i *gofeed.Item) bool {
@@ -212,5 +190,3 @@ func CreateLinkMute(targets []string) filterFuncCreator {
 		}
 	}
 }
-
-var LinkMute = CreateLinkMute(muteURLs)

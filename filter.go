@@ -1,36 +1,61 @@
 package ff
 
 import (
+	"os"
+	"strings"
+
 	"github.com/mmcdole/gofeed"
 )
 
 type FilterFunc = func(i *gofeed.Item) bool
 type filterFuncCreator = func(param string) FilterFunc
 
-var filters map[string]filterFuncCreator = map[string]filterFuncCreator{
-	"title.equal":              TitleEqual,
-	"description.equal":        DescriptionEqual,
-	"link.equal":               LinkEqual,
-	"author.equal":             AuthorEqual,
-	"title.not_equal":          TitleNotEqual,
-	"description.not_equal":    DescriptionNotEqual,
-	"link.not_equal":           LinkNotEqual,
-	"author.not_equal":         AuthorNotEqual,
-	"title.contains":           TitleContains,
-	"description.contains":     DescriptionContains,
-	"link.contains":            LinkContains,
-	"author.contains":          AuthorContains,
-	"title.not_contains":       TitleNotContains,
-	"description.not_contains": DescriptionNotContains,
-	"link.not_contains":        LinkNotContains,
-	"author.not_contains":      AuthorNotContains,
-	"updated_at.from":          UpdateAtFrom,
-	"published_at.from":        PublishedAtFrom,
-	"updated_at.latest":        UpdateAtLatest,
-	"published_at.latest":      PublishedAtLatest,
-	"latest":                   DateLatest,
-	"mute_authors":             AuthorMute,
-	"mute_urls":                LinkMute,
+var filters map[string]filterFuncCreator
+var muteAuthors []string
+var muteURLs []string
+
+func init() {
+	parseMuteParams()
+	createFilters()
+}
+
+func parseMuteParams() {
+	muteAuthorsStr := os.Getenv("MUTE_AUTHORS")
+	if muteAuthorsStr != "" {
+		muteAuthors = strings.Split(muteAuthorsStr, ",")
+	}
+	muteURLsStr := os.Getenv("MUTE_URLS")
+	if muteURLsStr != "" {
+		muteURLs = strings.Split(muteURLsStr, ",")
+	}
+}
+func createFilters() {
+	filters = map[string]filterFuncCreator{
+		"title.equal":              TitleEqual,
+		"description.equal":        DescriptionEqual,
+		"link.equal":               LinkEqual,
+		"author.equal":             AuthorEqual,
+		"title.not_equal":          TitleNotEqual,
+		"description.not_equal":    DescriptionNotEqual,
+		"link.not_equal":           LinkNotEqual,
+		"author.not_equal":         AuthorNotEqual,
+		"title.contains":           TitleContains,
+		"description.contains":     DescriptionContains,
+		"link.contains":            LinkContains,
+		"author.contains":          AuthorContains,
+		"title.not_contains":       TitleNotContains,
+		"description.not_contains": DescriptionNotContains,
+		"link.not_contains":        LinkNotContains,
+		"author.not_contains":      AuthorNotContains,
+		"updated_at.from":          UpdateAtFrom,
+		"published_at.from":        PublishedAtFrom,
+		"updated_at.latest":        UpdateAtLatest,
+		"published_at.latest":      PublishedAtLatest,
+		"latest":                   DateLatest,
+		"mute_authors":             CreateAuthorMute(muteAuthors),
+		"mute_urls":                CreateLinkMute(muteURLs),
+	}
+
 }
 
 func CreateFilter(key string, value string) FilterFunc {
