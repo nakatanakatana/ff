@@ -4,10 +4,20 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/mmcdole/gofeed"
 	"github.com/nakatanakatana/ff"
 )
+
+var latestOnlyFlag bool
+
+func init() {
+	latestOnly := os.Getenv("LATEST_ONLY")
+	if latestOnly != "" {
+		latestOnlyFlag = true
+	}
+}
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	queries := r.URL.Query()
@@ -31,6 +41,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var filters []ff.FilterFunc
+	if latestOnlyFlag {
+		filters = append(filters, ff.CreateFilter("latest", ""))
+	}
 	for key, values := range queries {
 		for _, v := range values {
 			f := ff.CreateFilter(key, v)

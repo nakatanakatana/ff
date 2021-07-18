@@ -156,7 +156,7 @@ func PublishedAtFrom(param string) FilterFunc {
 
 //
 func Latest(_ string, attr *time.Time) bool {
-	return From(time.Now().AddDate(0, 0, -30).Format(time.RFC3339), attr)
+	return From(time.Now().AddDate(0, 0, -7).Format(time.RFC3339), attr)
 }
 
 func UpdateAtLatest(param string) FilterFunc {
