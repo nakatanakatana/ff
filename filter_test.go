@@ -1,22 +1,20 @@
-package ff
+package ff_test
 
 import (
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/mmcdole/gofeed"
+	"github.com/nakatanakatana/ff"
 )
 
-func TestCreateFilter(t *testing.T) {
-	t.Run("if invalid key, return nil", func(t *testing.T) {
-		f := CreateFilter("invalidkey", "value")
-		if f != nil {
-			t.Fail()
-		}
-	})
+type filterFuncTest struct {
+	key    string
+	value  string
+	expect bool
+}
 
+func createTestItem() *gofeed.Item {
 	testUpdated := time.Date(2021, time.July, 11, 0, 0, 0, 0, time.UTC)
 	testPublished := time.Date(2021, time.July, 1, 0, 0, 0, 0, time.UTC)
 	testItem := &gofeed.Item{
@@ -28,11 +26,27 @@ func TestCreateFilter(t *testing.T) {
 		PublishedParsed: &testPublished,
 	}
 
-	for _, tt := range []struct {
-		key    string
-		value  string
-		expect bool
-	}{
+	return testItem
+}
+
+func TestCreateFilterInvalidKey(t *testing.T) {
+	t.Parallel()
+
+	filtersMap := ff.CreateFiltersMap([]string{}, []string{})
+
+	f := ff.CreateFilter("invalidkey", "value", filtersMap)
+	if f != nil {
+		t.Fail()
+	}
+}
+
+func TestCreateFilter(t *testing.T) {
+	t.Parallel()
+
+	filtersMap := ff.CreateFiltersMap([]string{}, []string{})
+	testItem := createTestItem()
+
+	for _, tt := range []filterFuncTest{
 		// equal
 		{key: "title.equal", value: "title", expect: true},
 		{key: "title.equal", value: "other_title", expect: false},
@@ -78,13 +92,21 @@ func TestCreateFilter(t *testing.T) {
 		{key: "published_at.from", value: "2021-07-07T12:00:00+09:00", expect: false},
 	} {
 		tt := tt
-		t.Run(tt.key+"="+tt.value+":"+strconv.FormatBool(tt.expect), func(t *testing.T) {
-			f := CreateFilter(tt.key, tt.value)
+		t.Run(tt.key, func(t *testing.T) {
+			t.Parallel()
+
+			f := ff.CreateFilter(tt.key, tt.value, filtersMap)
 			if f(testItem) != tt.expect {
 				t.Fail()
 			}
 		})
 	}
+}
+
+func TestCreateFilterItemHasNil(t *testing.T) {
+	t.Parallel()
+
+	filtersMap := ff.CreateFiltersMap([]string{}, []string{})
 
 	testItemHasNil := &gofeed.Item{
 		Title:       "title",
@@ -118,8 +140,10 @@ func TestCreateFilter(t *testing.T) {
 		{key: "published_at.from", value: "2021-07-07T12:00:00+09:00", expect: true},
 	} {
 		tt := tt
-		t.Run("hasNil: "+tt.key+"="+tt.value+":"+strconv.FormatBool(tt.expect), func(t *testing.T) {
-			f := CreateFilter(tt.key, tt.value)
+		t.Run(tt.key, func(t *testing.T) {
+			t.Parallel()
+
+			f := ff.CreateFilter(tt.key, tt.value, filtersMap)
 			if f(testItemHasNil) != tt.expect {
 				t.Fail()
 			}
@@ -128,38 +152,38 @@ func TestCreateFilter(t *testing.T) {
 }
 
 func TestAuthorMute(t *testing.T) {
-	testUpdated := time.Date(2021, time.July, 11, 0, 0, 0, 0, time.UTC)
-	testPublished := time.Date(2021, time.July, 1, 0, 0, 0, 0, time.UTC)
-	testItem := &gofeed.Item{
-		Title:           "title",
-		Description:     "description",
-		Link:            "https://github.com/nakatanakatana/ff",
-		Author:          &gofeed.Person{Name: "aname", Email: "aname@nakatanakatana.dev"},
-		UpdatedParsed:   &testUpdated,
-		PublishedParsed: &testPublished,
-	}
+	t.Parallel()
+
+	testItem := createTestItem()
 
 	for _, tt := range []struct {
+		name    string
 		targets []string
 		expect  bool
 	}{
-		{[]string{}, true},
-		{[]string{"title"}, false},
-		{[]string{"description"}, false},
-		{[]string{"github"}, false},
-		{[]string{"name"}, false},
-		{[]string{"desc"}, false},
-		{[]string{"hoge", "fuga", "title"}, false},
-		{[]string{"hoge", "name", "title"}, false},
+		{"empty", []string{}, true},
+		{"equal title", []string{"title"}, false},
+		{"equal description", []string{"description"}, false},
+		{"contains link", []string{"github"}, false},
+		{"contains author", []string{"name"}, false},
+		{"contains description", []string{"desc"}, false},
+		{"contains title", []string{"hoge", "fuga", "title"}, false},
+		{"contains multiple", []string{"hoge", "name", "title"}, false},
 	} {
 		tt := tt
-		t.Run(strings.Join(tt.targets, ",")+":"+strconv.FormatBool(tt.expect), func(t *testing.T) {
-			f := CreateAuthorMute(tt.targets)("")
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			f := ff.CreateAuthorMute(tt.targets)("")
 			if f(testItem) != tt.expect {
 				t.Fail()
 			}
 		})
 	}
+}
+
+func TestAuthorMuteItemHasNil(t *testing.T) {
+	t.Parallel()
 
 	testItemHasNil := &gofeed.Item{
 		Title:       "title",
@@ -168,21 +192,21 @@ func TestAuthorMute(t *testing.T) {
 	}
 
 	for _, tt := range []struct {
+		name    string
 		targets []string
 		expect  bool
 	}{
-		{[]string{}, true},
-		{[]string{"title"}, false},
-		{[]string{"description"}, false},
-		{[]string{"github"}, false},
-		{[]string{"name"}, true},
-		{[]string{"desc"}, false},
-		{[]string{"hoge", "fuga", "title"}, false},
-		{[]string{"hoge", "name", "title"}, false},
+		{"empty", []string{}, true},
+		{"contains title", []string{"title"}, false},
+		{"contains description", []string{"description"}, false},
+		{"contains link", []string{"github"}, false},
+		{"empty author ignore", []string{"name"}, true},
 	} {
 		tt := tt
-		t.Run(strings.Join(tt.targets, ",")+":"+strconv.FormatBool(tt.expect), func(t *testing.T) {
-			f := CreateAuthorMute(tt.targets)("")
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			f := ff.CreateAuthorMute(tt.targets)("")
 			if f(testItemHasNil) != tt.expect {
 				t.Fail()
 			}
@@ -191,30 +215,26 @@ func TestAuthorMute(t *testing.T) {
 }
 
 func TestLinkMute(t *testing.T) {
-	testUpdated := time.Date(2021, time.July, 11, 0, 0, 0, 0, time.UTC)
-	testPublished := time.Date(2021, time.July, 1, 0, 0, 0, 0, time.UTC)
-	testItem := &gofeed.Item{
-		Title:           "title",
-		Description:     "description",
-		Link:            "https://github.com/nakatanakatana/ff",
-		Author:          &gofeed.Person{Name: "aname", Email: "aname@nakatanakatana.dev"},
-		UpdatedParsed:   &testUpdated,
-		PublishedParsed: &testPublished,
-	}
+	t.Parallel()
+
+	testItem := createTestItem()
 
 	for _, tt := range []struct {
+		name    string
 		targets []string
 		expect  bool
 	}{
-		{[]string{}, true},
-		{[]string{"git"}, false},
-		{[]string{"github.com"}, false},
-		{[]string{"abc", "def", "ghi"}, true},
-		{[]string{"abc", "def", "git"}, false},
+		{"empty", []string{}, true},
+		{"contains link", []string{"git"}, false},
+		{"contains link", []string{"github.com"}, false},
+		{"all targets don't contain link", []string{"abc", "def", "ghi"}, true},
+		{"partial targets contains link", []string{"abc", "def", "git"}, false},
 	} {
 		tt := tt
-		t.Run(strings.Join(tt.targets, ",")+":"+strconv.FormatBool(tt.expect), func(t *testing.T) {
-			f := CreateLinkMute(tt.targets)("")
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			f := ff.CreateLinkMute(tt.targets)("")
 			if f(testItem) != tt.expect {
 				t.Fail()
 			}
@@ -222,33 +242,30 @@ func TestLinkMute(t *testing.T) {
 	}
 }
 
-func TestFilter(t *testing.T) {
-	testUpdated := time.Date(2021, time.July, 11, 0, 0, 0, 0, time.UTC)
-	testPublished := time.Date(2021, time.July, 1, 0, 0, 0, 0, time.UTC)
-	testItem := &gofeed.Item{
-		Title:           "title",
-		Description:     "description",
-		Link:            "https://github.com/nakatanakatana/ff",
-		Author:          &gofeed.Person{Name: "aname", Email: "aname@nakatanakatana.dev"},
-		UpdatedParsed:   &testUpdated,
-		PublishedParsed: &testPublished,
-	}
-	testFeed := &gofeed.Feed{
-		Items: []*gofeed.Item{testItem},
-	}
+func TestFilterDoAllFilterFuncAndCondition(t *testing.T) {
+	t.Parallel()
+
+	testItem := createTestItem()
 
 	for _, tt := range []struct {
-		filters   []FilterFunc
+		name      string
+		filters   []ff.FilterFunc
 		expectLen int
 	}{
-		{filters: []FilterFunc{}, expectLen: 1},
-		{filters: []FilterFunc{NilFilter("")}, expectLen: 1},
-		{filters: []FilterFunc{TitleEqual("title"), DescriptionEqual("description")}, expectLen: 1},
-		{filters: []FilterFunc{TitleEqual("ti"), TitleEqual("title")}, expectLen: 0},
+		{"empty", []ff.FilterFunc{}, 1},
+		{"nilFilter only", []ff.FilterFunc{ff.NilFilter("")}, 1},
+		{"all match", []ff.FilterFunc{ff.TitleEqual("title"), ff.DescriptionEqual("description")}, 1},
+		{"partial unmatch", []ff.FilterFunc{ff.TitleEqual("ti"), ff.TitleEqual("title")}, 0},
 	} {
 		tt := tt
-		t.Run("all filter do and condition", func(t *testing.T) {
-			result, err := Filter(testFeed, tt.filters...)
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			testFeed := &gofeed.Feed{
+				Items: []*gofeed.Item{testItem},
+			}
+			result, err := ff.Filter(testFeed, tt.filters...)
 			if err != nil {
 				t.Fail()
 			}

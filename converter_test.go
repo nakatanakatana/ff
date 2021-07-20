@@ -1,13 +1,16 @@
-package ff
+package ff_test
 
 import (
-	"fmt"
+	"log"
 	"testing"
 
 	"github.com/mmcdole/gofeed"
+	"github.com/nakatanakatana/ff"
 )
 
 func TestConvert(t *testing.T) {
+	t.Parallel()
+
 	for _, tt := range []struct {
 		url string
 	}{
@@ -15,14 +18,16 @@ func TestConvert(t *testing.T) {
 		{url: "https://zenn.dev/feed"},
 	} {
 		tt := tt
-		t.Run("getFeed:"+tt.url, func(t *testing.T) {
+		t.Run(tt.url, func(t *testing.T) {
+			t.Parallel()
+
 			fp := gofeed.NewParser()
 			feed, err := fp.ParseURL(tt.url)
 			if err != nil {
-				fmt.Println("err", err)
+				log.Println("err", err)
 			}
-			f := Convert(feed)
-			fmt.Println(len(f.Items))
+			f := ff.Convert(feed)
+			log.Println(len(f.Items))
 		})
 	}
 }

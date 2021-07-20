@@ -1,36 +1,17 @@
 package ff
 
 import (
-	"os"
-	"strings"
-
 	"github.com/mmcdole/gofeed"
 )
 
-type FilterFunc = func(i *gofeed.Item) bool
-type filterFuncCreator = func(param string) FilterFunc
+type (
+	FilterFunc        = func(i *gofeed.Item) bool
+	FilterFuncCreator = func(param string) FilterFunc
+	FilterFuncMap     = map[string]FilterFuncCreator
+)
 
-var filters map[string]filterFuncCreator
-var muteAuthors []string
-var muteURLs []string
-
-func init() {
-	parseMuteParams()
-	createFilters()
-}
-
-func parseMuteParams() {
-	muteAuthorsStr := os.Getenv("MUTE_AUTHORS")
-	if muteAuthorsStr != "" {
-		muteAuthors = strings.Split(muteAuthorsStr, ",")
-	}
-	muteURLsStr := os.Getenv("MUTE_URLS")
-	if muteURLsStr != "" {
-		muteURLs = strings.Split(muteURLsStr, ",")
-	}
-}
-func createFilters() {
-	filters = map[string]filterFuncCreator{
+func CreateFiltersMap(muteAuthors, muteURLs []string) FilterFuncMap {
+	return map[string]FilterFuncCreator{
 		"title.equal":              TitleEqual,
 		"description.equal":        DescriptionEqual,
 		"link.equal":               LinkEqual,
@@ -55,15 +36,15 @@ func createFilters() {
 		"mute_authors":             CreateAuthorMute(muteAuthors),
 		"mute_urls":                CreateLinkMute(muteURLs),
 	}
-
 }
 
-func CreateFilter(key string, value string) FilterFunc {
-	if f, ok := filters[key]; !ok {
+func CreateFilter(key string, value string, filters map[string]FilterFuncCreator) FilterFunc {
+	f, ok := filters[key]
+	if !ok {
 		return nil
-	} else {
-		return f(value)
 	}
+
+	return f(value)
 }
 
 func apply(i *gofeed.Item, ff ...FilterFunc) bool {
@@ -72,18 +53,22 @@ func apply(i *gofeed.Item, ff ...FilterFunc) bool {
 			return false
 		}
 	}
+
 	return true
 }
 
 func Filter(f *gofeed.Feed, ff ...FilterFunc) (*gofeed.Feed, error) {
 	items := make([]*gofeed.Item, len(f.Items))
-	var count = 0
+	count := 0
+
 	for _, i := range f.Items {
 		if apply(i, ff...) {
 			items[count] = i
 			count++
 		}
 	}
+
 	f.Items = items[:count]
+
 	return f, nil
 }
