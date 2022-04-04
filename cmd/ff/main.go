@@ -18,11 +18,16 @@ var (
 	modifiersMap   ff.ModifierFuncMap
 )
 
-func parseQueries(queries url.Values, filtersMap ff.FilterFuncMap, modifiersMap ff.ModifierFuncMap) ([]ff.FilterFunc, []ff.ModifierFunc) {
+func parseQueries(queries url.Values,
+	filtersMap ff.FilterFuncMap,
+	modifiersMap ff.ModifierFuncMap) ([]ff.FilterFunc,
+	[]ff.ModifierFunc,
+) {
 	var filters []ff.FilterFunc
 	if latestOnlyFlag {
 		filters = append(filters, ff.CreateFilter("latest", "", filtersMap))
 	}
+
 	f, m := ff.ParseQueries(queries, filtersMap, modifiersMap)
 	filters = append(filters, f...)
 

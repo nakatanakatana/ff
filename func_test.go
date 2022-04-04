@@ -45,6 +45,8 @@ func TestParseQueries(t *testing.T) {
 	} {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			u, err := url.Parse(tt.urlString)
 			assert.NilError(t, err)
 
@@ -55,6 +57,7 @@ func TestParseQueries(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestFilterAndModifier(t *testing.T) {
 	t.Parallel()
 
@@ -117,6 +120,8 @@ func TestFilterAndModifier(t *testing.T) {
 		tt := tt
 
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			testFeed := &gofeed.Feed{
 				Items: []*gofeed.Item{testItem},
 			}

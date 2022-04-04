@@ -6,7 +6,11 @@ import (
 	"github.com/mmcdole/gofeed"
 )
 
-func ParseQueries(queries url.Values, filtersMap FilterFuncMap, modifiersMap ModifierFuncMap) ([]FilterFunc, []ModifierFunc) {
+func ParseQueries(queries url.Values,
+	filtersMap FilterFuncMap,
+	modifiersMap ModifierFuncMap) ([]FilterFunc,
+	[]ModifierFunc,
+) {
 	var filters []FilterFunc
 
 	for key, values := range queries {
