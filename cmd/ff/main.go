@@ -15,24 +15,18 @@ import (
 var (
 	latestOnlyFlag bool
 	filtersMap     ff.FilterFuncMap
+	modifiersMap   ff.ModifierFuncMap
 )
 
-func parseQueries(queries url.Values, filtersMap ff.FilterFuncMap) []ff.FilterFunc {
+func parseQueries(queries url.Values, filtersMap ff.FilterFuncMap, modifiersMap ff.ModifierFuncMap) ([]ff.FilterFunc, []ff.ModifierFunc) {
 	var filters []ff.FilterFunc
 	if latestOnlyFlag {
 		filters = append(filters, ff.CreateFilter("latest", "", filtersMap))
 	}
+	f, m := ff.ParseQueries(queries, filtersMap, modifiersMap)
+	filters = append(filters, f...)
 
-	for key, values := range queries {
-		for _, v := range values {
-			f := ff.CreateFilter(key, v, filtersMap)
-			if f != nil {
-				filters = append(filters, f)
-			}
-		}
-	}
-
-	return filters
+	return filters, m
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
@@ -64,9 +58,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filters := parseQueries(queries, filtersMap)
+	filters, modifiers := parseQueries(queries, filtersMap, modifiersMap)
 
-	filteredFeed, err := ff.Apply(originFeed, filters...)
+	filteredFeed, err := ff.Apply(originFeed, filters, modifiers)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintln(w, err)
@@ -98,6 +92,7 @@ func main() {
 	}
 
 	filtersMap = ff.CreateFiltersMap(muteAuthors, muteURLs)
+	modifiersMap = ff.CreateModifierMap()
 	mux := http.NewServeMux()
 	mux.Handle("/", http.HandlerFunc(handler))
 	log.Fatal(http.ListenAndServe(":8080", mux))
