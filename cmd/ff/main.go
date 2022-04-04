@@ -66,7 +66,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	filters := parseQueries(queries, filtersMap)
 
-	filteredFeed, err := ff.Filter(originFeed, filters...)
+	filteredFeed, err := ff.Apply(originFeed, filters...)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintln(w, err)

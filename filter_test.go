@@ -2,7 +2,6 @@ package ff_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/mmcdole/gofeed"
 	"github.com/nakatanakatana/ff"
@@ -12,21 +11,6 @@ type filterFuncTest struct {
 	key    string
 	value  string
 	expect bool
-}
-
-func createTestItem() *gofeed.Item {
-	testUpdated := time.Date(2021, time.July, 11, 0, 0, 0, 0, time.UTC)
-	testPublished := time.Date(2021, time.July, 1, 0, 0, 0, 0, time.UTC)
-	testItem := &gofeed.Item{
-		Title:           "title",
-		Description:     "description",
-		Link:            "https://github.com/nakatanakatana/ff",
-		Author:          &gofeed.Person{Name: "aname", Email: "aname@nakatanakatana.dev"},
-		UpdatedParsed:   &testUpdated,
-		PublishedParsed: &testPublished,
-	}
-
-	return testItem
 }
 
 func TestCreateFilterInvalidKey(t *testing.T) {
@@ -265,7 +249,7 @@ func TestFilterDoAllFilterFuncAndCondition(t *testing.T) {
 			testFeed := &gofeed.Feed{
 				Items: []*gofeed.Item{testItem},
 			}
-			result, err := ff.Filter(testFeed, tt.filters...)
+			result, err := ff.Apply(testFeed, tt.filters...)
 			if err != nil {
 				t.Fail()
 			}

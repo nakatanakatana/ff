@@ -47,7 +47,7 @@ func CreateFilter(key string, value string, filters map[string]FilterFuncCreator
 	return f(value)
 }
 
-func apply(i *gofeed.Item, ff ...FilterFunc) bool {
+func filterApply(i *gofeed.Item, ff ...FilterFunc) bool {
 	for _, f := range ff {
 		if !f(i) {
 			return false
@@ -55,20 +55,4 @@ func apply(i *gofeed.Item, ff ...FilterFunc) bool {
 	}
 
 	return true
-}
-
-func Filter(f *gofeed.Feed, ff ...FilterFunc) (*gofeed.Feed, error) {
-	items := make([]*gofeed.Item, len(f.Items))
-	count := 0
-
-	for _, i := range f.Items {
-		if apply(i, ff...) {
-			items[count] = i
-			count++
-		}
-	}
-
-	f.Items = items[:count]
-
-	return f, nil
 }
