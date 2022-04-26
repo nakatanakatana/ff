@@ -25,7 +25,8 @@ func parseQueries(queries url.Values,
 ) {
 	var filters []ff.FilterFunc
 	if latestOnlyFlag {
-		filters = append(filters, ff.CreateFilter("latest", "", filtersMap))
+		filters = append(filters, ff.CreateFilter("published_at.latest", "", filtersMap))
+		filters = append(filters, ff.CreateFilter("updated_at.latest", "", filtersMap))
 	}
 
 	f, m := ff.ParseQueries(queries, filtersMap, modifiersMap)
