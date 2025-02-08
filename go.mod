@@ -12,6 +12,5 @@ require (
 	github.com/mmcdole/goxpp v0.0.0-20200921145534-2f3784f67354 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.1 // indirect
-	golang.org/x/net v0.0.0-20210614182718-04defd469f4e // indirect
-	gotest.tools/v3 v3.1.0
+	gotest.tools/v3 v3.5.1
 )
