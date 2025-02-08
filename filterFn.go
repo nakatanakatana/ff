@@ -123,7 +123,6 @@ func AuthorNotContains(param string) FilterFunc {
 	}
 }
 
-//
 func From(param string, attr *time.Time) bool {
 	parsedParam, err := time.Parse(time.RFC3339, param)
 	// if parsed error, ignore this params
@@ -150,18 +149,17 @@ func PublishedAtFrom(param string) FilterFunc {
 	}
 }
 
-//
 func Latest(_ string, attr *time.Time) bool {
 	return From(time.Now().AddDate(0, 0, -7).Format(time.RFC3339), attr)
 }
 
-func UpdateAtLatest(param string) FilterFunc {
+func UpdateAtLatest(_ string) FilterFunc {
 	return func(i *gofeed.Item) bool {
 		return Latest("", i.UpdatedParsed)
 	}
 }
 
-func PublishedAtLatest(param string) FilterFunc {
+func PublishedAtLatest(_ string) FilterFunc {
 	return func(i *gofeed.Item) bool {
 		return Latest("", i.PublishedParsed)
 	}
@@ -173,8 +171,8 @@ func DateLatest(_ string) FilterFunc {
 	}
 }
 
-func NilFilter(param string) FilterFunc {
-	return func(i *gofeed.Item) bool {
+func NilFilter(_ string) FilterFunc {
+	return func(_ *gofeed.Item) bool {
 		return true
 	}
 }

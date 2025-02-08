@@ -128,6 +128,7 @@ func TestFilterAndModifier(t *testing.T) {
 			result, err := ff.Apply(testFeed, tt.filters, tt.modifiers)
 			assert.NilError(t, err)
 			assert.Check(t, is.Len(result.Items, tt.expectItemLen))
+
 			if tt.expectItemLen > 0 {
 				assert.Check(t, is.DeepEqual(tt.expectItem, result.Items[0]))
 			}

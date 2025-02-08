@@ -7,9 +7,15 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/mmcdole/gofeed"
 	"github.com/nakatanakatana/ff"
+)
+
+const (
+	HTTPReadTimeout  = 30 * time.Second
+	HTTPWriteTimeout = 30 * time.Second
 )
 
 var (
@@ -101,5 +107,13 @@ func main() {
 	modifiersMap = ff.CreateModifierMap()
 	mux := http.NewServeMux()
 	mux.Handle("/", http.HandlerFunc(handler))
-	log.Fatal(http.ListenAndServe(":8080", mux))
+
+	server := http.Server{
+		Addr:         ":8080",
+		Handler:      mux,
+		ReadTimeout:  HTTPReadTimeout,
+		WriteTimeout: HTTPWriteTimeout,
+	}
+
+	log.Fatal(server.ListenAndServe())
 }

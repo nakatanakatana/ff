@@ -22,10 +22,12 @@ func TestConvert(t *testing.T) {
 			t.Parallel()
 
 			fp := gofeed.NewParser()
+
 			feed, err := fp.ParseURL(tt.url)
 			if err != nil {
 				log.Println("err", err)
 			}
+
 			f := ff.Convert(feed)
 			log.Println(len(f.Items))
 		})

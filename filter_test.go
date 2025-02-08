@@ -249,10 +249,12 @@ func TestFilterDoAllFilterFuncAndCondition(t *testing.T) {
 			testFeed := &gofeed.Feed{
 				Items: []*gofeed.Item{testItem},
 			}
+
 			result, err := ff.Apply(testFeed, tt.filters, []ff.ModifierFunc{})
 			if err != nil {
 				t.Fail()
 			}
+
 			if len(result.Items) != tt.expectLen {
 				t.Fail()
 			}
