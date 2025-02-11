@@ -1,6 +1,7 @@
 package ff
 
 import (
+	"context"
 	"net/url"
 
 	"github.com/mmcdole/gofeed"
@@ -37,11 +38,12 @@ func ParseQueries(queries url.Values,
 }
 
 func Apply(f *gofeed.Feed, ff []FilterFunc, mf []ModifierFunc) (*gofeed.Feed, error) {
+	ctx := context.Background()
 	items := make([]*gofeed.Item, len(f.Items))
 	count := 0
 
 	for _, i := range f.Items {
-		if filterApply(i, ff...) {
+		if filterApply(ctx, i, ff...) {
 			mi := modifierApply(i, mf...)
 			items[count] = mi
 			count++

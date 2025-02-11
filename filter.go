@@ -1,11 +1,13 @@
 package ff
 
 import (
+	"context"
+
 	"github.com/mmcdole/gofeed"
 )
 
 type (
-	FilterFunc        = func(i *gofeed.Item) bool
+	FilterFunc        = func(ctx context.Context, i *gofeed.Item) bool
 	FilterFuncCreator = func(param string) FilterFunc
 	FilterFuncMap     = map[string]FilterFuncCreator
 )
@@ -47,9 +49,9 @@ func CreateFilter(key string, value string, filters map[string]FilterFuncCreator
 	return f(value)
 }
 
-func filterApply(i *gofeed.Item, ff ...FilterFunc) bool {
+func filterApply(ctx context.Context, i *gofeed.Item, ff ...FilterFunc) bool {
 	for _, f := range ff {
-		if !f(i) {
+		if !f(ctx, i) {
 			return false
 		}
 	}

@@ -1,6 +1,7 @@
 package ff_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/mmcdole/gofeed"
@@ -78,9 +79,10 @@ func TestCreateFilter(t *testing.T) {
 		tt := tt
 		t.Run(tt.key, func(t *testing.T) {
 			t.Parallel()
+			ctx := context.Background()
 
 			f := ff.CreateFilter(tt.key, tt.value, filtersMap)
-			if f(testItem) != tt.expect {
+			if f(ctx, testItem) != tt.expect {
 				t.Fail()
 			}
 		})
@@ -126,9 +128,10 @@ func TestCreateFilterItemHasNil(t *testing.T) {
 		tt := tt
 		t.Run(tt.key, func(t *testing.T) {
 			t.Parallel()
+			ctx := context.Background()
 
 			f := ff.CreateFilter(tt.key, tt.value, filtersMap)
-			if f(testItemHasNil) != tt.expect {
+			if f(ctx, testItemHasNil) != tt.expect {
 				t.Fail()
 			}
 		})
@@ -157,9 +160,10 @@ func TestAuthorMute(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+			ctx := context.Background()
 
 			f := ff.CreateAuthorMute(tt.targets)("")
-			if f(testItem) != tt.expect {
+			if f(ctx, testItem) != tt.expect {
 				t.Fail()
 			}
 		})
@@ -189,9 +193,10 @@ func TestAuthorMuteItemHasNil(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+			ctx := context.Background()
 
 			f := ff.CreateAuthorMute(tt.targets)("")
-			if f(testItemHasNil) != tt.expect {
+			if f(ctx, testItemHasNil) != tt.expect {
 				t.Fail()
 			}
 		})
@@ -217,9 +222,10 @@ func TestLinkMute(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+			ctx := context.Background()
 
 			f := ff.CreateLinkMute(tt.targets)("")
-			if f(testItem) != tt.expect {
+			if f(ctx, testItem) != tt.expect {
 				t.Fail()
 			}
 		})
