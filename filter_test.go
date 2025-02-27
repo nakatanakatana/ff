@@ -79,6 +79,7 @@ func TestCreateFilter(t *testing.T) {
 		tt := tt
 		t.Run(tt.key, func(t *testing.T) {
 			t.Parallel()
+
 			ctx := context.Background()
 
 			f := ff.CreateFilter(tt.key, tt.value, filtersMap)
@@ -128,6 +129,7 @@ func TestCreateFilterItemHasNil(t *testing.T) {
 		tt := tt
 		t.Run(tt.key, func(t *testing.T) {
 			t.Parallel()
+
 			ctx := context.Background()
 
 			f := ff.CreateFilter(tt.key, tt.value, filtersMap)
@@ -160,6 +162,7 @@ func TestAuthorMute(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			ctx := context.Background()
 
 			f := ff.CreateAuthorMute(tt.targets)("")
@@ -193,6 +196,7 @@ func TestAuthorMuteItemHasNil(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			ctx := context.Background()
 
 			f := ff.CreateAuthorMute(tt.targets)("")
@@ -222,6 +226,7 @@ func TestLinkMute(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
 			ctx := context.Background()
 
 			f := ff.CreateLinkMute(tt.targets)("")

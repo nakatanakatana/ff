@@ -173,7 +173,7 @@ func DateLatest(_ string) FilterFunc {
 }
 
 func NilFilter(_ string) FilterFunc {
-	return func(_ context.Context, i *gofeed.Item) bool {
+	return func(_ context.Context, _ *gofeed.Item) bool {
 		return true
 	}
 }
