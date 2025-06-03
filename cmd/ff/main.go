@@ -18,8 +18,6 @@ const (
 
 var (
 	latestOnlyFlag bool
-	filtersMap     ff.FilterFuncMap
-	modifiersMap   ff.ModifierFuncMap
 )
 
 func parseQueries(queries url.Values,
@@ -48,12 +46,11 @@ func main() {
 		latestOnlyFlag = true
 	}
 
-	filtersMap = ff.CreateFiltersMap(muteAuthors, muteURLs)
-	modifiersMap = ff.CreateModifierMap()
+	filtersMap := ff.CreateFiltersMap(muteAuthors, muteURLs)
+	modifiersMap := ff.CreateModifierMap()
 	mux := http.NewServeMux()
-	mux.Handle("/", http.HandlerFunc(handler))
+	mux.Handle("/", http.HandlerFunc(createHandler(filtersMap, modifiersMap)))
 
-	// Apply the ETag middleware
 	handlerWithETag := etagMiddleware(mux)
 
 	server := http.Server{
