@@ -7,3 +7,20 @@
 ## query
 
 see [test file](./filter_test.go)
+
+## Development
+
+### Build
+```sh
+go build -o dist/ ./cmd/...
+```
+
+### Lint
+```sh
+golangci-lint run
+```
+
+### Test
+```sh
+go test ./... -v -coverprofile=coverage.txt -covermode=atomic
+```
