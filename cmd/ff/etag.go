@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec
 	"encoding/hex"
 	"fmt"
 	"net/http"
@@ -16,7 +16,13 @@ type responseWriterWithETag struct {
 
 func (w *responseWriterWithETag) Write(b []byte) (int, error) {
 	w.body.Write(b)
-	return w.ResponseWriter.Write(b)
+
+	i, err := w.ResponseWriter.Write(b)
+	if err != nil {
+		return i, fmt.Errorf("ResponseWriter.Write Error: %w", err)
+	}
+
+	return i, nil
 }
 
 func (w *responseWriterWithETag) WriteHeader(code int) {
@@ -28,6 +34,7 @@ func etagMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			next.ServeHTTP(w, r)
+
 			return
 		}
 
@@ -40,7 +47,7 @@ func etagMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(wrapper, r)
 
 		if wrapper.code == http.StatusOK {
-			hash := md5.Sum(wrapper.body.Bytes())
+			hash := md5.Sum(wrapper.body.Bytes()) //nolint:gosec
 			etag := hex.EncodeToString(hash[:])
 
 			w.Header().Set("ETag", fmt.Sprintf("\"%s\"", etag))

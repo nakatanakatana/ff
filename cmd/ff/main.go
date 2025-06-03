@@ -16,9 +16,7 @@ const (
 	HTTPWriteTimeout = 30 * time.Second
 )
 
-var (
-	latestOnlyFlag bool
-)
+var latestOnlyFlag bool
 
 func parseQueries(queries url.Values,
 	filtersMap ff.FilterFuncMap,
@@ -49,7 +47,7 @@ func main() {
 	filtersMap := ff.CreateFiltersMap(muteAuthors, muteURLs)
 	modifiersMap := ff.CreateModifierMap()
 	mux := http.NewServeMux()
-	mux.Handle("/", http.HandlerFunc(createHandler(filtersMap, modifiersMap)))
+	mux.Handle("/", createHandler(filtersMap, modifiersMap))
 
 	handlerWithETag := etagMiddleware(mux)
 

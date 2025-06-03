@@ -8,16 +8,21 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+//nolint:funlen
 func TestETagMiddleware(t *testing.T) {
+	t.Parallel()
+
 	t.Run("Should add ETag header for successful GET requests", func(t *testing.T) {
-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Parallel()
+
+		handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("test content"))
+			_, _ = w.Write([]byte("test content"))
 		})
 
 		middleware := etagMiddleware(handler)
 
-		req := httptest.NewRequest("GET", "/", nil)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		rec := httptest.NewRecorder()
 
 		middleware.ServeHTTP(rec, req)
@@ -27,19 +32,22 @@ func TestETagMiddleware(t *testing.T) {
 
 		etag := rec.Header().Get("ETag")
 		assert.Assert(t, etag != "", "ETag header should not be empty")
+
 		expectedETag := "\"9473fdd0d880a43c21b7778d34872157\""
 		assert.Equal(t, expectedETag, etag)
 	})
 
 	t.Run("Should not add ETag header for non-GET requests", func(t *testing.T) {
-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Parallel()
+
+		handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("test content"))
+			_, _ = w.Write([]byte("test content"))
 		})
 
 		middleware := etagMiddleware(handler)
 
-		req := httptest.NewRequest("POST", "/", nil)
+		req := httptest.NewRequest(http.MethodPost, "/", nil)
 		rec := httptest.NewRecorder()
 
 		middleware.ServeHTTP(rec, req)
@@ -52,14 +60,16 @@ func TestETagMiddleware(t *testing.T) {
 	})
 
 	t.Run("Should not add ETag header for non-200 responses", func(t *testing.T) {
-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Parallel()
+
+		handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("not found"))
+			_, _ = w.Write([]byte("not found"))
 		})
 
 		middleware := etagMiddleware(handler)
 
-		req := httptest.NewRequest("GET", "/", nil)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		rec := httptest.NewRecorder()
 
 		middleware.ServeHTTP(rec, req)

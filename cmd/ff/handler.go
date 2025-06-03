@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/mmcdole/gofeed"
 	"github.com/nakatanakatana/ff"
-	"net/http"
 )
 
 func createHandler(filtersMap ff.FilterFuncMap, modifiersMap ff.ModifierFuncMap) http.HandlerFunc {

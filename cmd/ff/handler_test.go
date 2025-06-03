@@ -12,7 +12,10 @@ import (
 	"gotest.tools/v3/golden"
 )
 
+//nolint:funlen
 func TestHandlerInvalidRequest(t *testing.T) {
+	t.Parallel()
+
 	filtersMap := ff.CreateFiltersMap([]string{}, []string{})
 	modifiersMap := ff.CreateModifierMap()
 	handler := createHandler(filtersMap, modifiersMap)
@@ -45,10 +48,11 @@ func TestHandlerInvalidRequest(t *testing.T) {
 		{
 			name: "Invalid feed URL should return BadRequest",
 			setupMockServer: func() (*httptest.Server, func()) {
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.WriteHeader(http.StatusNotFound)
-					w.Write([]byte("Not Found"))
+					_, _ = w.Write([]byte("Not Found"))
 				}))
+
 				return server, server.Close
 			},
 			requestURL:       "/?url=%s",
@@ -58,10 +62,11 @@ func TestHandlerInvalidRequest(t *testing.T) {
 		{
 			name: "Invalid XML feed should return BadRequest",
 			setupMockServer: func() (*httptest.Server, func()) {
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.WriteHeader(http.StatusOK)
-					w.Write([]byte("This is not a valid XML feed"))
+					_, _ = w.Write([]byte("This is not a valid XML feed"))
 				}))
+
 				return server, server.Close
 			},
 			requestURL:       "/?url=%s",
@@ -71,7 +76,10 @@ func TestHandlerInvalidRequest(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			mockServer, cleanup := tc.setupMockServer()
 			defer cleanup()
 
@@ -80,7 +88,7 @@ func TestHandlerInvalidRequest(t *testing.T) {
 				requestURL = strings.ReplaceAll(requestURL, "%s", mockServer.URL)
 			}
 
-			req := httptest.NewRequest("GET", requestURL, nil)
+			req := httptest.NewRequest(http.MethodGet, requestURL, nil)
 			rec := httptest.NewRecorder()
 
 			handler(rec, req)
@@ -91,7 +99,10 @@ func TestHandlerInvalidRequest(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestHandlerSuccess(t *testing.T) {
+	t.Parallel()
+
 	filtersMap := ff.CreateFiltersMap([]string{}, []string{})
 	modifiersMap := ff.CreateModifierMap()
 	handler := createHandler(filtersMap, modifiersMap)
@@ -116,10 +127,14 @@ func TestHandlerSuccess(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
-			mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			t.Parallel()
+
+			mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`<?xml version="1.0" encoding="UTF-8" ?>
+				_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">
 <channel>
   <title>RSS Title</title>
@@ -142,7 +157,7 @@ func TestHandlerSuccess(t *testing.T) {
 
 			requestURL := strings.ReplaceAll(tc.requestURL, "%s", mockServer.URL)
 
-			req := httptest.NewRequest("GET", requestURL, nil)
+			req := httptest.NewRequest(http.MethodGet, requestURL, nil)
 			rec := httptest.NewRecorder()
 
 			handler(rec, req)
