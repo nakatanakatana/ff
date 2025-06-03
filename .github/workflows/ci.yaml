@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: go build ./...
+      - run: go build -o dist/ ./cmd/...
 
   test:
     needs: setup

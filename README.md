@@ -12,7 +12,7 @@ see [test file](./filter_test.go)
 
 ### Build
 ```sh
-go build ./...
+go build -o dist/ ./cmd/...
 ```
 
 ### Lint
