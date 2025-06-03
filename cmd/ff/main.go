@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -9,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mmcdole/gofeed"
 	"github.com/nakatanakatana/ff"
 )
 
@@ -41,59 +39,6 @@ func parseQueries(queries url.Values,
 	return filters, m
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	queries := r.URL.Query()
-
-	upstream, ok := queries["url"]
-	if !ok {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "must set URL")
-
-		return
-	}
-
-	if len(upstream) != 1 {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "cannot set multiple URL")
-
-		return
-	}
-
-	u := upstream[0]
-	fp := gofeed.NewParser()
-
-	originFeed, err := fp.ParseURL(u)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintln(w, err)
-
-		return
-	}
-
-	filters, modifiers := parseQueries(queries, filtersMap, modifiersMap)
-
-	filteredFeed, err := ff.Apply(originFeed, filters, modifiers)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintln(w, err)
-
-		return
-	}
-
-	c := ff.Convert(filteredFeed)
-
-	rss, err := c.ToRss()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintln(w, err)
-
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintln(w, rss)
-}
-
 func main() {
 	muteAuthors := strings.Split(os.Getenv("MUTE_AUTHORS"), ",")
 	muteURLs := strings.Split(os.Getenv("MUTE_URLS"), ",")
@@ -108,9 +53,12 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/", http.HandlerFunc(handler))
 
+	// Apply the ETag middleware
+	handlerWithETag := etagMiddleware(mux)
+
 	server := http.Server{
 		Addr:         ":8080",
-		Handler:      mux,
+		Handler:      handlerWithETag,
 		ReadTimeout:  HTTPReadTimeout,
 		WriteTimeout: HTTPWriteTimeout,
 	}
