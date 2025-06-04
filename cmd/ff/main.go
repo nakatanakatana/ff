@@ -49,11 +49,9 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("/", createHandler(filtersMap, modifiersMap))
 
-	handlerWithETag := etagMiddleware(mux)
-
 	server := http.Server{
 		Addr:         ":8080",
-		Handler:      handlerWithETag,
+		Handler:      mux,
 		ReadTimeout:  HTTPReadTimeout,
 		WriteTimeout: HTTPWriteTimeout,
 	}
