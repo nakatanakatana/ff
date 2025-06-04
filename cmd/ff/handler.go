@@ -58,6 +58,7 @@ func createHandler(filtersMap ff.FilterFuncMap, modifiersMap ff.ModifierFuncMap)
 			return
 		}
 
+		w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintln(w, rss)
 	}

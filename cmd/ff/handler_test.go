@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -97,6 +98,82 @@ func TestHandlerInvalidRequest(t *testing.T) {
 			assert.Assert(t, cmp.Contains(rec.Body.String(), tc.expectedResponse))
 		})
 	}
+}
+
+func TestHandlerWithETagMiddleware_HEADRequest(t *testing.T) {
+	t.Parallel()
+
+	feedContent := `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>RSS Title</title>
+    <link>http://example.com</link>
+    <description>This is an example RSS feed</description>
+    <item>
+      <title>Example entry</title>
+      <link>http://example.com/1</link>
+      <description>Example description</description>
+    </item>
+    <item>
+      <title>Second entry</title>
+      <link>http://example.com/2</link>
+      <description>Second description</description>
+    </item>
+  </channel>
+</rss>
+` // Note: Trailing newline is intentional to match Fprintln and golden file.
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		// The mock server should serve the exact content that ToRss() would generate,
+		// because createHandler itself uses the ToRss() output.
+		// So, the mock server's content should match the 'feedContent' above.
+		w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8") // Match what real handler would do
+		// The mock server should serve the exact content that ToRss() would generate,
+		// because createHandler itself uses the ToRss() output.
+		// So, the mock server's content should match the 'feedContent' above.
+		w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8") // Match what real handler would do
+		w.WriteHeader(http.StatusOK)
+		// Use Fprintln to mimic the main handler's behavior regarding potential newlines.
+		fmt.Fprintln(w, strings.TrimSuffix(feedContent, "\n")) // Trim suffix \n because Fprintln will add one
+	}))
+	defer mockServer.Close()
+
+	filtersMap := ff.CreateFiltersMap([]string{}, []string{})
+	modifiersMap := ff.CreateModifierMap()
+	handler := createHandler(filtersMap, modifiersMap)
+	wrappedHandler := etagMiddleware(handler)
+
+	targetURL := "/?url=" + mockServer.URL
+
+	// 1. GET Request to establish baseline and ETag
+	reqGet := httptest.NewRequest(http.MethodGet, targetURL, nil)
+	recGet := httptest.NewRecorder()
+	wrappedHandler.ServeHTTP(recGet, reqGet)
+
+	assert.Equal(t, http.StatusOK, recGet.Code, "GET request: status code mismatch")
+	assert.Assert(t, recGet.Body.String() != "", "GET request: body should not be empty")
+	expectedContentType := "application/rss+xml; charset=utf-8"
+	assert.Equal(t, expectedContentType, recGet.Header().Get("Content-Type"), "GET request: Content-Type mismatch")
+
+	etagGet := recGet.Header().Get("ETag")
+	assert.Assert(t, etagGet != "", "GET request: ETag should not be empty")
+
+	// Verify GET body content. Since feedContent now includes a trailing newline (like Fprintln would add),
+	// and recGet.Body.String() will also have it from the handler's Fprintln,
+	// a direct string comparison should work.
+	assert.Equal(t, feedContent, recGet.Body.String(), "GET request: body content mismatch")
+
+	// 2. HEAD Request
+	reqHead := httptest.NewRequest(http.MethodHead, targetURL, nil)
+	recHead := httptest.NewRecorder()
+	wrappedHandler.ServeHTTP(recHead, reqHead)
+
+	assert.Equal(t, http.StatusOK, recHead.Code, "HEAD request: status code mismatch")
+	assert.Equal(t, "", recHead.Body.String(), "HEAD request: body must be empty")
+	assert.Equal(t, expectedContentType, recHead.Header().Get("Content-Type"), "HEAD request: Content-Type mismatch")
+
+	etagHead := recHead.Header().Get("ETag")
+	assert.Assert(t, etagHead != "", "HEAD request: ETag should not be empty")
+	assert.Equal(t, etagGet, etagHead, "HEAD request: ETag should match ETag from GET request")
 }
 
 //nolint:funlen
