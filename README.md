@@ -17,7 +17,7 @@ go build -o dist/ ./cmd/...
 
 ### Lint
 ```sh
-golangci-lint run
+go tool golangci-lint run
 ```
 
 ### Test
