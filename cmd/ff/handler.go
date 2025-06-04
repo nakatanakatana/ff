@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/mmcdole/gofeed"
@@ -10,6 +11,10 @@ import (
 
 func createHandler(filtersMap ff.FilterFuncMap, modifiersMap ff.ModifierFuncMap) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		for k, v := range r.Header {
+			log.Printf("Header field %q, Value %q\n", k, v)
+		}
+
 		queries := r.URL.Query()
 
 		upstream, ok := queries["url"]
