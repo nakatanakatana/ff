@@ -100,9 +100,11 @@ func TestHandlerInvalidRequest(t *testing.T) {
 	}
 }
 
+//nolint:funlen
 func TestHandlerWithETagMiddleware_HEADRequest(t *testing.T) {
 	t.Parallel()
 
+	//nolint:lll
 	feedContent := `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>RSS Title</title>
@@ -121,6 +123,7 @@ func TestHandlerWithETagMiddleware_HEADRequest(t *testing.T) {
   </channel>
 </rss>
 `
+
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
 		w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
@@ -142,6 +145,7 @@ func TestHandlerWithETagMiddleware_HEADRequest(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, recGet.Code, "GET request: status code mismatch")
 	assert.Assert(t, recGet.Body.String() != "", "GET request: body should not be empty")
+
 	expectedContentType := "application/rss+xml; charset=utf-8"
 	assert.Equal(t, expectedContentType, recGet.Header().Get("Content-Type"), "GET request: Content-Type mismatch")
 

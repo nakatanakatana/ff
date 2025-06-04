@@ -151,13 +151,16 @@ func TestETagMiddleware(t *testing.T) {
 		middleware.ServeHTTP(rec, req)
 
 		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Equal(t, "", rec.Body.String(), "Body for HEAD request with empty handler response must be empty")
-		assert.Equal(t, "", rec.Header().Get("ETag"), "ETag header should be empty for HEAD responses with no body content from handler")
+		assert.Equal(t, "", rec.Body.String(),
+			"Body for HEAD request with empty handler response must be empty")
+		assert.Equal(t, "", rec.Header().Get("ETag"),
+			"ETag header should be empty for HEAD responses with no body content from handler")
 	})
 
 	t.Run("Should not add ETag for GET requests with empty body response", func(t *testing.T) {
 		t.Parallel()
-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
 		})
 		middleware := etagMiddleware(handler)

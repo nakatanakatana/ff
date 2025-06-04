@@ -15,7 +15,12 @@ type responseWriterWithETag struct {
 }
 
 func (w *responseWriterWithETag) Write(b []byte) (int, error) {
-	return w.body.Write(b)
+	i, err := w.body.Write(b)
+	if err != nil {
+		return i, fmt.Errorf("body.Write Error: %w", err)
+	}
+
+	return i, nil
 }
 
 func (w *responseWriterWithETag) WriteHeader(code int) {
