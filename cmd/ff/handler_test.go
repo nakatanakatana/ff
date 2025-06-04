@@ -120,20 +120,12 @@ func TestHandlerWithETagMiddleware_HEADRequest(t *testing.T) {
     </item>
   </channel>
 </rss>
-` // Note: Trailing newline is intentional to match Fprintln and golden file.
-
+`
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		// The mock server should serve the exact content that ToRss() would generate,
-		// because createHandler itself uses the ToRss() output.
-		// So, the mock server's content should match the 'feedContent' above.
-		w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8") // Match what real handler would do
-		// The mock server should serve the exact content that ToRss() would generate,
-		// because createHandler itself uses the ToRss() output.
-		// So, the mock server's content should match the 'feedContent' above.
-		w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8") // Match what real handler would do
+		w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
+		w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
-		// Use Fprintln to mimic the main handler's behavior regarding potential newlines.
-		fmt.Fprintln(w, strings.TrimSuffix(feedContent, "\n")) // Trim suffix \n because Fprintln will add one
+		fmt.Fprintln(w, strings.TrimSuffix(feedContent, "\n"))
 	}))
 	defer mockServer.Close()
 
@@ -144,7 +136,6 @@ func TestHandlerWithETagMiddleware_HEADRequest(t *testing.T) {
 
 	targetURL := "/?url=" + mockServer.URL
 
-	// 1. GET Request to establish baseline and ETag
 	reqGet := httptest.NewRequest(http.MethodGet, targetURL, nil)
 	recGet := httptest.NewRecorder()
 	wrappedHandler.ServeHTTP(recGet, reqGet)
@@ -157,12 +148,8 @@ func TestHandlerWithETagMiddleware_HEADRequest(t *testing.T) {
 	etagGet := recGet.Header().Get("ETag")
 	assert.Assert(t, etagGet != "", "GET request: ETag should not be empty")
 
-	// Verify GET body content. Since feedContent now includes a trailing newline (like Fprintln would add),
-	// and recGet.Body.String() will also have it from the handler's Fprintln,
-	// a direct string comparison should work.
 	assert.Equal(t, feedContent, recGet.Body.String(), "GET request: body content mismatch")
 
-	// 2. HEAD Request
 	reqHead := httptest.NewRequest(http.MethodHead, targetURL, nil)
 	recHead := httptest.NewRecorder()
 	wrappedHandler.ServeHTTP(recHead, reqHead)

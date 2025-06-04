@@ -47,7 +47,6 @@ func TestETagMiddleware(t *testing.T) {
 
 		middleware := etagMiddleware(handler)
 
-		// Test with POST
 		reqPost := httptest.NewRequest(http.MethodPost, "/", nil)
 		recPost := httptest.NewRecorder()
 		middleware.ServeHTTP(recPost, reqPost)
@@ -56,12 +55,11 @@ func TestETagMiddleware(t *testing.T) {
 		assert.Equal(t, "test content", recPost.Body.String())
 		assert.Equal(t, "", recPost.Header().Get("ETag"), "ETag header should be empty for POST requests")
 
-		// Optionally, test with other methods like PUT
 		reqPut := httptest.NewRequest(http.MethodPut, "/", nil)
 		recPut := httptest.NewRecorder()
 		middleware.ServeHTTP(recPut, reqPut)
 
-		assert.Equal(t, http.StatusOK, recPut.Code) // Assuming handler doesn't change behavior for PUT
+		assert.Equal(t, http.StatusOK, recPut.Code)
 		assert.Equal(t, "test content", recPut.Body.String())
 		assert.Equal(t, "", recPut.Header().Get("ETag"), "ETag header should be empty for PUT requests")
 	})
@@ -92,17 +90,15 @@ func TestETagMiddleware(t *testing.T) {
 		t.Parallel()
 
 		testContent := "test content for HEAD"
-		// md5 for "test content for HEAD" is 359e4a2ceb40364ccde9fc7b56c93948 (as per test output)
 		expectedETagForHead := "\"359e4a2ceb40364ccde9fc7b56c93948\""
 
 		handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.Header().Set("Content-Type", "text/plain") // Set a content type
+			w.Header().Set("Content-Type", "text/plain")
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(testContent))
 		})
 		middleware := etagMiddleware(handler)
 
-		// 1. Perform GET request to establish baseline ETag and body
 		reqGet := httptest.NewRequest(http.MethodGet, "/", nil)
 		recGet := httptest.NewRecorder()
 		middleware.ServeHTTP(recGet, reqGet)
@@ -113,7 +109,6 @@ func TestETagMiddleware(t *testing.T) {
 		assert.Equal(t, expectedETagForHead, etagGet, "ETag for GET request was not as expected")
 		assert.Equal(t, "text/plain", recGet.Header().Get("Content-Type"))
 
-		// 2. Perform HEAD request
 		reqHead := httptest.NewRequest(http.MethodHead, "/", nil)
 		recHead := httptest.NewRecorder()
 		middleware.ServeHTTP(recHead, reqHead)
@@ -123,17 +118,7 @@ func TestETagMiddleware(t *testing.T) {
 		etagHead := recHead.Header().Get("ETag")
 		assert.Assert(t, etagHead != "", "ETag header should not be empty for HEAD requests")
 		assert.Equal(t, etagGet, etagHead, "ETag for HEAD should match ETag for GET")
-		// Content-Type should still be present for HEAD
 		assert.Equal(t, "text/plain", recHead.Header().Get("Content-Type"), "Content-Type for HEAD was not as expected")
-		// Content-Length for HEAD should reflect the original content length
-		// httptest.ResponseRecorder might set it to 0 because the body is empty after our middleware.
-		// However, a real HTTP server would typically calculate it.
-		// For now, we won't assert Content-Length strictly as it depends on httptest behavior here.
-		// We can check if it's present though.
-		// cl := recHead.Header().Get("Content-Length")
-		// assert.Assert(t, cl != "", "Content-Length should be present for HEAD")
-		// assert.Equal(t, strconv.Itoa(len(testContent)), cl, "Content-Length for HEAD was not as expected")
-
 	})
 
 	t.Run("Should not add ETag for HEAD requests with non-200 responses", func(t *testing.T) {
@@ -141,9 +126,6 @@ func TestETagMiddleware(t *testing.T) {
 
 		handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
-			// It's good practice for handlers to not write a body for errors on HEAD,
-			// but middleware should handle it even if they do.
-			// _, _ = w.Write([]byte("error content"))
 		})
 		middleware := etagMiddleware(handler)
 
@@ -161,7 +143,6 @@ func TestETagMiddleware(t *testing.T) {
 
 		handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			// No body written
 		})
 		middleware := etagMiddleware(handler)
 
@@ -178,7 +159,6 @@ func TestETagMiddleware(t *testing.T) {
 		t.Parallel()
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			// No body written
 		})
 		middleware := etagMiddleware(handler)
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
