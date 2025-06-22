@@ -3,6 +3,7 @@ package ff
 import (
 	"crypto/sha256"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,6 +17,7 @@ type CacheMiddleware struct {
 	next      http.Handler
 	etags     map[string]string
 	etagMutex sync.RWMutex
+	fsys      fs.FS
 }
 
 func NewCacheMiddleware(next http.Handler) (*CacheMiddleware, error) {
@@ -30,6 +32,7 @@ func NewCacheMiddleware(next http.Handler) (*CacheMiddleware, error) {
 		tmpDir: cacheDir,
 		next:   next,
 		etags:  make(map[string]string),
+		fsys:   os.DirFS(cacheDir),
 	}, nil
 }
 
@@ -42,13 +45,13 @@ func (c *CacheMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		upstreamURLs := queries["url"]
 		if len(upstreamURLs) > 0 {
 			if c.isCacheFresh(upstreamURLs[0], cacheKey, stat.ModTime()) {
-				http.ServeFile(w, r, cachePath)
+				http.ServeFileFS(w, r, c.fsys, cacheKey)
 				return
 			}
 			os.Remove(cachePath)
 			c.removeETag(cacheKey)
 		} else {
-			http.ServeFile(w, r, cachePath)
+			http.ServeFileFS(w, r, c.fsys, cacheKey)
 			return
 		}
 	}
