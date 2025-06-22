@@ -1,6 +1,7 @@
 package ff
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"io/fs"
@@ -12,8 +13,15 @@ import (
 	"time"
 )
 
+const (
+	httpMethodHead = "HEAD"
+	requestTimeout = 10 * time.Second
+	filePerms      = 0o600
+	dirPerms       = 0o755
+)
+
 type CacheMiddleware struct {
-	tmpDir    string
+	TmpDir    string
 	next      http.Handler
 	etags     map[string]string
 	etagMutex sync.RWMutex
@@ -24,12 +32,12 @@ func NewCacheMiddleware(next http.Handler) (*CacheMiddleware, error) {
 	tmpDir := os.TempDir()
 	cacheDir := filepath.Join(tmpDir, "ff-cache")
 
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+	if err := os.MkdirAll(cacheDir, dirPerms); err != nil {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
 	return &CacheMiddleware{
-		tmpDir: cacheDir,
+		TmpDir: cacheDir,
 		next:   next,
 		etags:  make(map[string]string),
 		fsys:   os.DirFS(cacheDir),
@@ -38,20 +46,23 @@ func NewCacheMiddleware(next http.Handler) (*CacheMiddleware, error) {
 
 func (c *CacheMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	queries := r.URL.Query()
-	cacheKey := c.getCacheKey(queries)
-	cachePath := filepath.Join(c.tmpDir, cacheKey)
+	cacheKey := c.GetCacheKey(queries)
+	cachePath := filepath.Join(c.TmpDir, cacheKey)
 
 	if stat, err := os.Stat(cachePath); err == nil {
 		upstreamURLs := queries["url"]
 		if len(upstreamURLs) > 0 {
-			if c.isCacheFresh(upstreamURLs[0], cacheKey, stat.ModTime()) {
+			if c.IsCacheFresh(r.Context(), upstreamURLs[0], cacheKey, stat.ModTime()) {
 				http.ServeFileFS(w, r, c.fsys, cacheKey)
+
 				return
 			}
+
 			os.Remove(cachePath)
-			c.removeETag(cacheKey)
+			c.RemoveETag(cacheKey)
 		} else {
 			http.ServeFileFS(w, r, c.fsys, cacheKey)
+
 			return
 		}
 	}
@@ -67,13 +78,14 @@ func (c *CacheMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	upstreamURLs := queries["url"]
 	if len(upstreamURLs) > 0 {
-		responseRecorder.captureAndStoreETag(upstreamURLs[0])
+		responseRecorder.captureAndStoreETag(r.Context(), upstreamURLs[0])
 	}
 }
 
-func (c *CacheMiddleware) getCacheKey(params url.Values) string {
+func (c *CacheMiddleware) GetCacheKey(params url.Values) string {
 	h := sha256.New()
 	h.Write([]byte(params.Encode()))
+
 	return fmt.Sprintf("%x.rss", h.Sum(nil))
 }
 
@@ -84,19 +96,21 @@ type ResponseRecorder struct {
 	cacheKey        string
 }
 
-func (c *CacheMiddleware) isCacheFresh(upstreamURL string, cacheKey string, cacheTime time.Time) bool {
-	req, err := http.NewRequest("HEAD", upstreamURL, nil)
+func (c *CacheMiddleware) IsCacheFresh(
+	ctx context.Context, upstreamURL string, cacheKey string, cacheTime time.Time,
+) bool {
+	req, err := http.NewRequestWithContext(ctx, httpMethodHead, upstreamURL, nil)
 	if err != nil {
 		return true
 	}
 
-	storedETag := c.getStoredETag(cacheKey)
+	storedETag := c.GetStoredETag(cacheKey)
 	if storedETag != "" {
 		req.Header.Set("If-None-Match", storedETag)
 	}
 
 	client := &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: requestTimeout,
 	}
 
 	resp, err := client.Do(req)
@@ -117,6 +131,7 @@ func (c *CacheMiddleware) isCacheFresh(upstreamURL string, cacheKey string, cach
 	if lastModified := resp.Header.Get("Last-Modified"); lastModified != "" {
 		if lastModTime, err := http.ParseTime(lastModified); err == nil {
 			cacheTimeUTC := cacheTime.UTC()
+
 			return !lastModTime.After(cacheTimeUTC)
 		}
 	}
@@ -124,47 +139,54 @@ func (c *CacheMiddleware) isCacheFresh(upstreamURL string, cacheKey string, cach
 	return false
 }
 
-func (c *CacheMiddleware) getStoredETag(cacheKey string) string {
+func (c *CacheMiddleware) GetStoredETag(cacheKey string) string {
 	c.etagMutex.RLock()
 	defer c.etagMutex.RUnlock()
+
 	return c.etags[cacheKey]
 }
 
-func (c *CacheMiddleware) storeETag(cacheKey string, etag string) {
+func (c *CacheMiddleware) StoreETag(cacheKey string, etag string) {
 	if etag == "" {
 		return
 	}
+
 	c.etagMutex.Lock()
 	defer c.etagMutex.Unlock()
 	c.etags[cacheKey] = etag
 }
 
-func (c *CacheMiddleware) removeETag(cacheKey string) {
+func (c *CacheMiddleware) RemoveETag(cacheKey string) {
 	c.etagMutex.Lock()
 	defer c.etagMutex.Unlock()
 	delete(c.etags, cacheKey)
 }
 
 func (r *ResponseRecorder) Write(data []byte) (int, error) {
-	if err := os.WriteFile(r.cachePath, data, 0644); err != nil {
+	if err := os.WriteFile(r.cachePath, data, filePerms); err != nil {
 		return 0, fmt.Errorf("failed to write cache file: %w", err)
 	}
 
-	return r.ResponseWriter.Write(data)
+	n, err := r.ResponseWriter.Write(data)
+	if err != nil {
+		return n, fmt.Errorf("failed to write response: %w", err)
+	}
+
+	return n, nil
 }
 
 func (r *ResponseRecorder) WriteHeader(statusCode int) {
 	r.ResponseWriter.WriteHeader(statusCode)
 }
 
-func (r *ResponseRecorder) captureAndStoreETag(upstreamURL string) {
-	req, err := http.NewRequest("HEAD", upstreamURL, nil)
+func (r *ResponseRecorder) captureAndStoreETag(ctx context.Context, upstreamURL string) {
+	req, err := http.NewRequestWithContext(ctx, httpMethodHead, upstreamURL, nil)
 	if err != nil {
 		return
 	}
 
 	client := &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: requestTimeout,
 	}
 
 	resp, err := client.Do(req)
@@ -174,6 +196,6 @@ func (r *ResponseRecorder) captureAndStoreETag(upstreamURL string) {
 	defer resp.Body.Close()
 
 	if etag := resp.Header.Get("ETag"); etag != "" {
-		r.cacheMiddleware.storeETag(r.cacheKey, etag)
+		r.cacheMiddleware.StoreETag(r.cacheKey, etag)
 	}
 }

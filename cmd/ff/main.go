@@ -48,6 +48,7 @@ func main() {
 	modifiersMap := ff.CreateModifierMap()
 
 	handler := createHandler(filtersMap, modifiersMap)
+
 	cacheMiddleware, err := ff.NewCacheMiddleware(handler)
 	if err != nil {
 		log.Fatal(err)
