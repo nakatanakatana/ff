@@ -49,6 +49,7 @@ func TestCacheMiddleware(t *testing.T) {
 	// Check Content-Type header includes charset
 	contentType := w.Header().Get("Content-Type")
 	expectedContentType := "application/rss+xml; charset=utf-8"
+
 	if contentType != expectedContentType {
 		t.Errorf("Expected Content-Type %q, got %q", expectedContentType, contentType)
 	}
