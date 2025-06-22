@@ -7,11 +7,15 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
 )
 
 type CacheMiddleware struct {
-	tmpDir string
-	next   http.Handler
+	tmpDir    string
+	next      http.Handler
+	etags     map[string]string
+	etagMutex sync.RWMutex
 }
 
 func NewCacheMiddleware(next http.Handler) (*CacheMiddleware, error) {
@@ -25,24 +29,43 @@ func NewCacheMiddleware(next http.Handler) (*CacheMiddleware, error) {
 	return &CacheMiddleware{
 		tmpDir: cacheDir,
 		next:   next,
+		etags:  make(map[string]string),
 	}, nil
 }
 
 func (c *CacheMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	cacheKey := c.getCacheKey(r.URL.Query())
+	queries := r.URL.Query()
+	cacheKey := c.getCacheKey(queries)
 	cachePath := filepath.Join(c.tmpDir, cacheKey)
 
-	if _, err := os.Stat(cachePath); err == nil {
-		http.ServeFile(w, r, cachePath)
-		return
+	if stat, err := os.Stat(cachePath); err == nil {
+		upstreamURLs := queries["url"]
+		if len(upstreamURLs) > 0 {
+			if c.isCacheFresh(upstreamURLs[0], cacheKey, stat.ModTime()) {
+				http.ServeFile(w, r, cachePath)
+				return
+			}
+			os.Remove(cachePath)
+			c.removeETag(cacheKey)
+		} else {
+			http.ServeFile(w, r, cachePath)
+			return
+		}
 	}
 
 	responseRecorder := &ResponseRecorder{
-		ResponseWriter: w,
-		cachePath:      cachePath,
+		ResponseWriter:  w,
+		cachePath:       cachePath,
+		cacheMiddleware: c,
+		cacheKey:        cacheKey,
 	}
 
 	c.next.ServeHTTP(responseRecorder, r)
+
+	upstreamURLs := queries["url"]
+	if len(upstreamURLs) > 0 {
+		responseRecorder.captureAndStoreETag(upstreamURLs[0])
+	}
 }
 
 func (c *CacheMiddleware) getCacheKey(params url.Values) string {
@@ -53,7 +76,70 @@ func (c *CacheMiddleware) getCacheKey(params url.Values) string {
 
 type ResponseRecorder struct {
 	http.ResponseWriter
-	cachePath string
+	cachePath       string
+	cacheMiddleware *CacheMiddleware
+	cacheKey        string
+}
+
+func (c *CacheMiddleware) isCacheFresh(upstreamURL string, cacheKey string, cacheTime time.Time) bool {
+	req, err := http.NewRequest("HEAD", upstreamURL, nil)
+	if err != nil {
+		return true
+	}
+
+	storedETag := c.getStoredETag(cacheKey)
+	if storedETag != "" {
+		req.Header.Set("If-None-Match", storedETag)
+	}
+
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return true
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotModified {
+		return true
+	}
+
+	currentETag := resp.Header.Get("ETag")
+	if currentETag != "" && storedETag != "" {
+		return currentETag == storedETag
+	}
+
+	if lastModified := resp.Header.Get("Last-Modified"); lastModified != "" {
+		if lastModTime, err := http.ParseTime(lastModified); err == nil {
+			cacheTimeUTC := cacheTime.UTC()
+			return !lastModTime.After(cacheTimeUTC)
+		}
+	}
+
+	return false
+}
+
+func (c *CacheMiddleware) getStoredETag(cacheKey string) string {
+	c.etagMutex.RLock()
+	defer c.etagMutex.RUnlock()
+	return c.etags[cacheKey]
+}
+
+func (c *CacheMiddleware) storeETag(cacheKey string, etag string) {
+	if etag == "" {
+		return
+	}
+	c.etagMutex.Lock()
+	defer c.etagMutex.Unlock()
+	c.etags[cacheKey] = etag
+}
+
+func (c *CacheMiddleware) removeETag(cacheKey string) {
+	c.etagMutex.Lock()
+	defer c.etagMutex.Unlock()
+	delete(c.etags, cacheKey)
 }
 
 func (r *ResponseRecorder) Write(data []byte) (int, error) {
@@ -62,4 +148,29 @@ func (r *ResponseRecorder) Write(data []byte) (int, error) {
 	}
 
 	return r.ResponseWriter.Write(data)
+}
+
+func (r *ResponseRecorder) WriteHeader(statusCode int) {
+	r.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (r *ResponseRecorder) captureAndStoreETag(upstreamURL string) {
+	req, err := http.NewRequest("HEAD", upstreamURL, nil)
+	if err != nil {
+		return
+	}
+
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	if etag := resp.Header.Get("ETag"); etag != "" {
+		r.cacheMiddleware.storeETag(r.cacheKey, etag)
+	}
 }
