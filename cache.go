@@ -3,6 +3,7 @@ package ff
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -19,6 +20,8 @@ const (
 	filePerms      = 0o600
 	dirPerms       = 0o755
 )
+
+var ErrNoResponseBody = errors.New("no response body to cache")
 
 type CacheMiddleware struct {
 	TmpDir    string
@@ -72,6 +75,7 @@ func (c *CacheMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		cachePath:       cachePath,
 		cacheMiddleware: c,
 		cacheKey:        cacheKey,
+		statusCode:      http.StatusOK,
 	}
 
 	c.next.ServeHTTP(responseRecorder, r)
@@ -80,6 +84,16 @@ func (c *CacheMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if len(upstreamURLs) > 0 {
 		responseRecorder.captureAndStoreETag(r.Context(), upstreamURLs[0])
 	}
+
+	// Write response to cache file and serve from filesystem
+	if err := responseRecorder.writeToCache(); err != nil {
+		http.Error(w, "Failed to cache response", http.StatusInternalServerError)
+
+		return
+	}
+
+	// Serve the cached file
+	http.ServeFileFS(w, r, c.fsys, cacheKey)
 }
 
 func (c *CacheMiddleware) GetCacheKey(params url.Values) string {
@@ -94,6 +108,8 @@ type ResponseRecorder struct {
 	cachePath       string
 	cacheMiddleware *CacheMiddleware
 	cacheKey        string
+	body            []byte
+	statusCode      int
 }
 
 func (c *CacheMiddleware) IsCacheFresh(
@@ -163,20 +179,25 @@ func (c *CacheMiddleware) RemoveETag(cacheKey string) {
 }
 
 func (r *ResponseRecorder) Write(data []byte) (int, error) {
-	if err := os.WriteFile(r.cachePath, data, filePerms); err != nil {
-		return 0, fmt.Errorf("failed to write cache file: %w", err)
-	}
+	r.body = append(r.body, data...)
 
-	n, err := r.ResponseWriter.Write(data)
-	if err != nil {
-		return n, fmt.Errorf("failed to write response: %w", err)
-	}
-
-	return n, nil
+	return len(data), nil
 }
 
 func (r *ResponseRecorder) WriteHeader(statusCode int) {
-	r.ResponseWriter.WriteHeader(statusCode)
+	r.statusCode = statusCode
+}
+
+func (r *ResponseRecorder) writeToCache() error {
+	if len(r.body) == 0 {
+		return ErrNoResponseBody
+	}
+
+	if err := os.WriteFile(r.cachePath, r.body, filePerms); err != nil {
+		return fmt.Errorf("failed to write cache file: %w", err)
+	}
+
+	return nil
 }
 
 func (r *ResponseRecorder) captureAndStoreETag(ctx context.Context, upstreamURL string) {
