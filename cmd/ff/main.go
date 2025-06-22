@@ -46,8 +46,15 @@ func main() {
 
 	filtersMap := ff.CreateFiltersMap(muteAuthors, muteURLs)
 	modifiersMap := ff.CreateModifierMap()
+
+	handler := createHandler(filtersMap, modifiersMap)
+	cacheMiddleware, err := ff.NewCacheMiddleware(handler)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	mux := http.NewServeMux()
-	mux.Handle("/", createHandler(filtersMap, modifiersMap))
+	mux.Handle("/", cacheMiddleware)
 
 	server := http.Server{
 		Addr:         ":8080",
