@@ -52,24 +52,41 @@ func (c *CacheMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	cacheKey := c.GetCacheKey(queries)
 	cachePath := filepath.Join(c.TmpDir, cacheKey)
 
-	if stat, err := os.Stat(cachePath); err == nil {
-		upstreamURLs := queries["url"]
-		if len(upstreamURLs) > 0 {
-			if c.IsCacheFresh(r.Context(), upstreamURLs[0], cacheKey, stat.ModTime()) {
-				c.serveFileWithCharset(w, r, cacheKey)
+	// Check if cache file exists
+	stat, err := os.Stat(cachePath)
+	if err != nil {
+		// Cache miss - generate new response
+		c.generateAndCacheResponse(w, r, queries, cachePath, cacheKey)
 
-				return
-			}
-
-			os.Remove(cachePath)
-			c.RemoveETag(cacheKey)
-		} else {
-			c.serveFileWithCharset(w, r, cacheKey)
-
-			return
-		}
+		return
 	}
 
+	// Cache file exists - check if we need freshness validation
+	upstreamURLs := queries["url"]
+	if len(upstreamURLs) == 0 {
+		// No URL parameter - serve cached file directly
+		c.serveFileWithCharset(w, r, cacheKey)
+
+		return
+	}
+
+	// Check if cache is fresh
+	if !c.IsCacheFresh(r.Context(), upstreamURLs[0], cacheKey, stat.ModTime()) {
+		// Cache is stale - remove and regenerate
+		os.Remove(cachePath)
+		c.RemoveETag(cacheKey)
+		c.generateAndCacheResponse(w, r, queries, cachePath, cacheKey)
+
+		return
+	}
+
+	// Cache is fresh - serve it
+	c.serveFileWithCharset(w, r, cacheKey)
+}
+
+func (c *CacheMiddleware) generateAndCacheResponse(
+	w http.ResponseWriter, r *http.Request, queries url.Values, cachePath, cacheKey string,
+) {
 	responseRecorder := &ResponseRecorder{
 		ResponseWriter:  w,
 		cachePath:       cachePath,
