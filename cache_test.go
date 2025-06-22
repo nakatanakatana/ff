@@ -46,6 +46,13 @@ func TestCacheMiddleware(t *testing.T) {
 		t.Errorf("Expected 'test response', got %s", w.Body.String())
 	}
 
+	// Check Content-Type header includes charset
+	contentType := w.Header().Get("Content-Type")
+	expectedContentType := "application/rss+xml; charset=utf-8"
+	if contentType != expectedContentType {
+		t.Errorf("Expected Content-Type %q, got %q", expectedContentType, contentType)
+	}
+
 	cacheKey := middleware.GetCacheKey(params)
 	cachePath := filepath.Join(middleware.TmpDir, cacheKey)
 
@@ -62,6 +69,12 @@ func TestCacheMiddleware(t *testing.T) {
 
 	if !strings.Contains(w2.Body.String(), "test response") {
 		t.Errorf("Expected cached response to contain 'test response', got %s", w2.Body.String())
+	}
+
+	// Check Content-Type header for cached response too
+	contentType2 := w2.Header().Get("Content-Type")
+	if contentType2 != expectedContentType {
+		t.Errorf("Expected cached Content-Type %q, got %q", expectedContentType, contentType2)
 	}
 
 	os.Remove(cachePath)

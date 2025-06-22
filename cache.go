@@ -56,7 +56,7 @@ func (c *CacheMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		upstreamURLs := queries["url"]
 		if len(upstreamURLs) > 0 {
 			if c.IsCacheFresh(r.Context(), upstreamURLs[0], cacheKey, stat.ModTime()) {
-				http.ServeFileFS(w, r, c.fsys, cacheKey)
+				c.serveFileWithCharset(w, r, cacheKey)
 
 				return
 			}
@@ -64,7 +64,7 @@ func (c *CacheMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			os.Remove(cachePath)
 			c.RemoveETag(cacheKey)
 		} else {
-			http.ServeFileFS(w, r, c.fsys, cacheKey)
+			c.serveFileWithCharset(w, r, cacheKey)
 
 			return
 		}
@@ -93,7 +93,7 @@ func (c *CacheMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Serve the cached file
-	http.ServeFileFS(w, r, c.fsys, cacheKey)
+	c.serveFileWithCharset(w, r, cacheKey)
 }
 
 func (c *CacheMiddleware) GetCacheKey(params url.Values) string {
@@ -101,6 +101,12 @@ func (c *CacheMiddleware) GetCacheKey(params url.Values) string {
 	h.Write([]byte(params.Encode()))
 
 	return fmt.Sprintf("%x.rss", h.Sum(nil))
+}
+
+func (c *CacheMiddleware) serveFileWithCharset(w http.ResponseWriter, r *http.Request, filename string) {
+	// Set Content-Type with charset before serving the file
+	w.Header().Set("Content-Type", "application/rss+xml; charset=utf-8")
+	http.ServeFileFS(w, r, c.fsys, filename)
 }
 
 type ResponseRecorder struct {
