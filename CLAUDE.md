@@ -24,6 +24,17 @@ go fmt ./...
 go test ./... -v -coverprofile=coverage.txt -covermode=atomic
 ```
 
+## Development Workflow
+
+**IMPORTANT**: After making any code changes, always run the following commands in order to ensure code quality:
+
+1. **Format code**: `go fmt ./...`
+2. **Run tests**: `go test ./... -v`
+3. **Run linter**: `go tool golangci-lint run`
+4. **Build project**: `go build -o dist/ ./cmd/...`
+
+This workflow ensures that all code changes are properly formatted, tested, and free of linting errors before committing.
+
 ## Architecture
 
 This is a Go-based RSS feed filtering and modification service that:
