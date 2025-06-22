@@ -7,14 +7,18 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/nakatanakatana/ff"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/fs"
 )
 
-const testETagKey = "test-etag-key.rss"
+const (
+	testETagKey   = "test-etag-key.rss"
+	testETagValue = `"abc123"`
+)
 
 func TestCacheMiddleware(t *testing.T) {
 	t.Parallel()
@@ -25,9 +29,7 @@ func TestCacheMiddleware(t *testing.T) {
 	})
 
 	middleware, err := ff.NewCacheMiddleware(testHandler)
-	if err != nil {
-		t.Fatalf("Failed to create cache middleware: %v", err)
-	}
+	assert.NilError(t, err, "Failed to create cache middleware")
 
 	params := url.Values{}
 	params.Set("url", "https://example.com/feed")
@@ -38,47 +40,35 @@ func TestCacheMiddleware(t *testing.T) {
 
 	middleware.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK {
-		t.Errorf("Expected status 200, got %d", w.Code)
-	}
-
-	if w.Body.String() != "test response" {
-		t.Errorf("Expected 'test response', got %s", w.Body.String())
-	}
+	assert.Equal(t, w.Code, http.StatusOK, "Response status should be 200")
+	assert.Equal(t, w.Body.String(), "test response", "Response body should match")
 
 	// Check Content-Type header includes charset
-	contentType := w.Header().Get("Content-Type")
 	expectedContentType := "application/rss+xml; charset=utf-8"
-
-	if contentType != expectedContentType {
-		t.Errorf("Expected Content-Type %q, got %q", expectedContentType, contentType)
-	}
+	assert.Equal(t, w.Header().Get("Content-Type"), expectedContentType,
+		"Content-Type header should include charset")
 
 	cacheKey := middleware.GetCacheKey(params)
 	cachePath := filepath.Join(middleware.TmpDir, cacheKey)
 
-	if _, err := os.Stat(cachePath); os.IsNotExist(err) {
-		t.Error("Cache file should exist after first request")
-	}
+	// Verify cache file exists
+	_, err = os.Stat(cachePath)
+	assert.NilError(t, err, "Cache file should exist after first request")
 
+	// Test serving from cache
 	w2 := httptest.NewRecorder()
 	middleware.ServeHTTP(w2, req)
 
-	if w2.Code != http.StatusOK {
-		t.Errorf("Expected cached response status 200, got %d", w2.Code)
-	}
+	assert.Equal(t, w2.Code, http.StatusOK, "Cached response status should be 200")
+	assert.Assert(t, w2.Body.String() == "test response",
+		"Cached response should contain expected content")
+	assert.Equal(t, w2.Header().Get("Content-Type"), expectedContentType,
+		"Cached response should have correct Content-Type")
 
-	if !strings.Contains(w2.Body.String(), "test response") {
-		t.Errorf("Expected cached response to contain 'test response', got %s", w2.Body.String())
-	}
-
-	// Check Content-Type header for cached response too
-	contentType2 := w2.Header().Get("Content-Type")
-	if contentType2 != expectedContentType {
-		t.Errorf("Expected cached Content-Type %q, got %q", expectedContentType, contentType2)
-	}
-
-	os.Remove(cachePath)
+	// Cleanup
+	t.Cleanup(func() {
+		os.Remove(cachePath)
+	})
 }
 
 func TestGetCacheKey(t *testing.T) {
@@ -97,13 +87,13 @@ func TestGetCacheKey(t *testing.T) {
 	key1 := middleware.GetCacheKey(params1)
 	key2 := middleware.GetCacheKey(params2)
 
-	if key1 == key2 {
-		t.Error("Different parameters should generate different cache keys")
-	}
+	assert.Assert(t, key1 != key2, "Different parameters should generate different cache keys")
+	assert.Assert(t, key1 != "", "Cache key should not be empty")
+	assert.Assert(t, key2 != "", "Cache key should not be empty")
 
-	if !strings.HasSuffix(key1, ".rss") {
-		t.Error("Cache key should have .rss extension")
-	}
+	// Verify cache key format
+	assert.Equal(t, filepath.Ext(key1), ".rss", "Cache key should have .rss extension")
+	assert.Equal(t, filepath.Ext(key2), ".rss", "Cache key should have .rss extension")
 }
 
 func TestIsCacheFresh(t *testing.T) {
@@ -117,104 +107,108 @@ func TestIsCacheFresh(t *testing.T) {
 	oldContentTime := now.Add(-2 * time.Hour) // Content is 2 hours old (older than cache)
 	newContentTime := now                     // Content is fresh (newer than cache)
 
-	// Test case 1: Last-Modified is older than cache time (cache is fresh)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodHead {
-			w.Header().Set("Last-Modified", oldContentTime.Format(http.TimeFormat))
-			w.WriteHeader(http.StatusOK)
-		}
-	}))
-	defer server.Close()
+	t.Run("cache_fresh_when_last_modified_older", func(t *testing.T) {
+		t.Parallel()
 
-	if !middleware.IsCacheFresh(context.Background(), server.URL, "test-key", cacheTime) {
-		t.Errorf("Cache should be fresh when Last-Modified (%v) is older than cache time (%v)",
-			oldContentTime, cacheTime)
-	}
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodHead {
+				w.Header().Set("Last-Modified", oldContentTime.Format(http.TimeFormat))
+				w.WriteHeader(http.StatusOK)
+			}
+		}))
+		defer server.Close()
 
-	// Test case 2: Last-Modified is newer than cache time (cache is stale)
-	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodHead {
-			w.Header().Set("Last-Modified", newContentTime.Format(http.TimeFormat))
-			w.WriteHeader(http.StatusOK)
-		}
-	}))
-	defer server2.Close()
+		fresh := middleware.IsCacheFresh(context.Background(), server.URL, "test-key", cacheTime)
+		assert.Assert(t, fresh, "Cache should be fresh when Last-Modified is older than cache time")
+	})
 
-	if middleware.IsCacheFresh(context.Background(), server2.URL, "test-key", cacheTime) {
-		t.Errorf("Cache should be stale when Last-Modified (%v) is newer than cache time (%v)",
-			newContentTime, cacheTime)
-	}
+	t.Run("cache_stale_when_last_modified_newer", func(t *testing.T) {
+		t.Parallel()
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodHead {
+				w.Header().Set("Last-Modified", newContentTime.Format(http.TimeFormat))
+				w.WriteHeader(http.StatusOK)
+			}
+		}))
+		defer server.Close()
+
+		fresh := middleware.IsCacheFresh(context.Background(), server.URL, "test-key", cacheTime)
+		assert.Assert(t, !fresh, "Cache should be stale when Last-Modified is newer than cache time")
+	})
 }
 
 func TestCacheETagStorage(t *testing.T) {
 	t.Parallel()
 
 	middleware, err := ff.NewCacheMiddleware(nil)
-	if err != nil {
-		t.Fatalf("Failed to create cache middleware: %v", err)
-	}
+	assert.NilError(t, err, "Failed to create cache middleware")
 
 	cacheKey := testETagKey
+	testETag := testETagValue
 
 	// Test storing and retrieving ETag
-	testETag := `"abc123"`
 	middleware.StoreETag(cacheKey, testETag)
-
 	retrievedETag := middleware.GetStoredETag(cacheKey)
-	if retrievedETag != testETag {
-		t.Errorf("Expected ETag %s, got %s", testETag, retrievedETag)
-	}
+	assert.Equal(t, retrievedETag, testETag, "Retrieved ETag should match stored ETag")
 
-	// Clean up
+	// Test removing ETag
 	middleware.RemoveETag(cacheKey)
+	removedETag := middleware.GetStoredETag(cacheKey)
+	assert.Equal(t, removedETag, "", "ETag should be empty after removal")
 }
 
 func TestCacheETagValidation(t *testing.T) {
 	t.Parallel()
 
 	middleware, err := ff.NewCacheMiddleware(nil)
-	if err != nil {
-		t.Fatalf("Failed to create cache middleware: %v", err)
-	}
+	assert.NilError(t, err, "Failed to create cache middleware")
+
+	t.Run("cache_fresh_when_etag_matches", func(t *testing.T) {
+		t.Parallel()
+		testETagMatches(t, middleware)
+	})
+
+	t.Run("cache_stale_when_etag_differs", func(t *testing.T) {
+		t.Parallel()
+		testETagDiffers(t, middleware)
+	})
+
+	t.Run("cache_fresh_on_304_not_modified", func(t *testing.T) {
+		t.Parallel()
+		testETag304NotModified(t, middleware)
+	})
+}
+
+func testETagMatches(t *testing.T, middleware *ff.CacheMiddleware) {
+	t.Helper()
 
 	cacheKey := testETagKey
 	cacheTime := time.Now().UTC().Add(-1 * time.Hour)
+	testETag := testETagValue
 
-	// Test ETag-based cache validation
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodHead {
-			w.Header().Set("ETag", `"abc123"`)
+			w.Header().Set("ETag", testETag)
 			w.WriteHeader(http.StatusOK)
 		}
 	}))
 	defer server.Close()
 
-	// Store the ETag first
-	middleware.StoreETag(cacheKey, `"abc123"`)
+	middleware.StoreETag(cacheKey, testETag)
+	defer middleware.RemoveETag(cacheKey)
 
-	if !middleware.IsCacheFresh(context.Background(), server.URL, cacheKey, cacheTime) {
-		t.Error("Cache should be fresh when ETag matches")
-	}
-
-	// Clean up
-	middleware.RemoveETag(cacheKey)
+	fresh := middleware.IsCacheFresh(context.Background(), server.URL, cacheKey, cacheTime)
+	assert.Assert(t, fresh, "Cache should be fresh when ETag matches")
 }
 
-func TestCacheETagMismatch(t *testing.T) {
-	t.Parallel()
-
-	middleware, err := ff.NewCacheMiddleware(nil)
-	if err != nil {
-		t.Fatalf("Failed to create cache middleware: %v", err)
-	}
+func testETagDiffers(t *testing.T, middleware *ff.CacheMiddleware) {
+	t.Helper()
 
 	cacheKey := testETagKey
 	cacheTime := time.Now().UTC().Add(-1 * time.Hour)
+	testETag := testETagValue
 
-	// Store initial ETag
-	middleware.StoreETag(cacheKey, `"abc123"`)
-
-	// Test with different ETag
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodHead {
 			w.Header().Set("ETag", `"xyz789"`)
@@ -223,45 +217,98 @@ func TestCacheETagMismatch(t *testing.T) {
 	}))
 	defer server.Close()
 
-	if middleware.IsCacheFresh(context.Background(), server.URL, cacheKey, cacheTime) {
-		t.Error("Cache should be stale when ETag is different")
-	}
+	middleware.StoreETag(cacheKey, testETag)
+	defer middleware.RemoveETag(cacheKey)
 
-	// Clean up
-	middleware.RemoveETag(cacheKey)
+	fresh := middleware.IsCacheFresh(context.Background(), server.URL, cacheKey, cacheTime)
+	assert.Assert(t, !fresh, "Cache should be stale when ETag is different")
 }
 
-func TestCacheETagNotModified(t *testing.T) {
-	t.Parallel()
-
-	middleware, err := ff.NewCacheMiddleware(nil)
-	if err != nil {
-		t.Fatalf("Failed to create cache middleware: %v", err)
-	}
+func testETag304NotModified(t *testing.T, middleware *ff.CacheMiddleware) {
+	t.Helper()
 
 	cacheKey := testETagKey
 	cacheTime := time.Now().UTC().Add(-1 * time.Hour)
+	testETag := testETagValue
 
-	// Store the ETag first
-	middleware.StoreETag(cacheKey, `"abc123"`)
-
-	// Test 304 Not Modified response
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodHead {
-			if r.Header.Get("If-None-Match") == `"abc123"` {
+			if r.Header.Get("If-None-Match") == testETag {
 				w.WriteHeader(http.StatusNotModified)
 			} else {
-				w.Header().Set("ETag", `"abc123"`)
+				w.Header().Set("ETag", testETag)
 				w.WriteHeader(http.StatusOK)
 			}
 		}
 	}))
 	defer server.Close()
 
-	if !middleware.IsCacheFresh(context.Background(), server.URL, cacheKey, cacheTime) {
-		t.Error("Cache should be fresh when server returns 304 Not Modified")
-	}
+	middleware.StoreETag(cacheKey, testETag)
+	defer middleware.RemoveETag(cacheKey)
 
-	// Clean up
-	middleware.RemoveETag(cacheKey)
+	fresh := middleware.IsCacheFresh(context.Background(), server.URL, cacheKey, cacheTime)
+	assert.Assert(t, fresh, "Cache should be fresh when server returns 304 Not Modified")
+}
+
+func TestCacheMiddlewareWithTempDir(t *testing.T) {
+	t.Parallel()
+
+	// Create a temporary directory for testing
+	tmpDir := fs.NewDir(t, "cache-test")
+	defer tmpDir.Remove()
+
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("temp dir test"))
+	})
+
+	middleware, err := ff.NewCacheMiddleware(testHandler)
+	assert.NilError(t, err, "Failed to create cache middleware")
+
+	params := url.Values{}
+	params.Set("url", "https://example.com/test")
+
+	req := httptest.NewRequest(http.MethodGet, "/?"+params.Encode(), nil)
+	w := httptest.NewRecorder()
+
+	middleware.ServeHTTP(w, req)
+
+	assert.Equal(t, w.Code, http.StatusOK, "Response status should be 200")
+	assert.Equal(t, w.Body.String(), "temp dir test", "Response body should match")
+
+	// Verify cache file was created
+	cacheKey := middleware.GetCacheKey(params)
+	cachePath := filepath.Join(middleware.TmpDir, cacheKey)
+
+	_, err = os.Stat(cachePath)
+	assert.NilError(t, err, "Cache file should exist")
+
+	// Cleanup
+	t.Cleanup(func() {
+		os.Remove(cachePath)
+	})
+}
+
+func TestCacheMiddlewareErrorHandling(t *testing.T) {
+	t.Parallel()
+
+	// Test with handler that returns no content
+	emptyHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	middleware, err := ff.NewCacheMiddleware(emptyHandler)
+	assert.NilError(t, err, "Failed to create cache middleware")
+
+	params := url.Values{}
+	params.Set("url", "https://example.com/empty")
+
+	req := httptest.NewRequest(http.MethodGet, "/?"+params.Encode(), nil)
+	w := httptest.NewRecorder()
+
+	middleware.ServeHTTP(w, req)
+
+	// Should return error due to empty response body
+	assert.Equal(t, w.Code, http.StatusInternalServerError,
+		"Should return 500 for empty response body")
 }
