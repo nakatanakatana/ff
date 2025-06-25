@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -8,26 +9,42 @@ import (
 	"github.com/nakatanakatana/ff"
 )
 
+var (
+	ErrMustSetURL        = errors.New("must set URL")
+	ErrCannotSetMultiURL = errors.New("cannot set multiple URL")
+)
+
+func parseAndValidateURL(r *http.Request) (string, error) {
+	queries := r.URL.Query()
+
+	upstream, ok := queries["url"]
+	if !ok {
+		return "", ErrMustSetURL
+	}
+
+	if len(upstream) != 1 {
+		return "", ErrCannotSetMultiURL
+	}
+
+	return upstream[0], nil
+}
+
 func createHandler(filtersMap ff.FilterFuncMap, modifiersMap ff.ModifierFuncMap) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		queries := r.URL.Query()
-
-		upstream, ok := queries["url"]
-		if !ok {
-			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "must set URL")
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			w.WriteHeader(http.StatusMethodNotAllowed)
 
 			return
 		}
 
-		if len(upstream) != 1 {
+		u, err := parseAndValidateURL(r)
+		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
-			fmt.Fprintf(w, "cannot set multiple URL")
+			fmt.Fprint(w, err)
 
 			return
 		}
 
-		u := upstream[0]
 		fp := gofeed.NewParser()
 
 		originFeed, err := fp.ParseURL(u)
@@ -38,7 +55,7 @@ func createHandler(filtersMap ff.FilterFuncMap, modifiersMap ff.ModifierFuncMap)
 			return
 		}
 
-		filters, modifiers := parseQueries(queries, filtersMap, modifiersMap)
+		filters, modifiers := parseQueries(r.URL.Query(), filtersMap, modifiersMap)
 
 		filteredFeed, err := ff.Apply(originFeed, filters, modifiers)
 		if err != nil {
@@ -59,6 +76,11 @@ func createHandler(filtersMap ff.FilterFuncMap, modifiersMap ff.ModifierFuncMap)
 		}
 
 		w.WriteHeader(http.StatusOK)
+
+		if r.Method == http.MethodHead {
+			return
+		}
+
 		fmt.Fprintln(w, rss)
 	}
 }

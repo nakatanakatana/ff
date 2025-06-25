@@ -53,3 +53,23 @@ func TestCreateModifier(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateModifierWithNonExistentField(t *testing.T) {
+	t.Parallel()
+
+	modifiersMap := ff.CreateModifierMap()
+	testItem := createTestItem()
+
+	f := ff.CreateModifier("rm.nonexistent", "", modifiersMap)
+	assert.Assert(t, f == nil)
+
+	// check that the item is not modified
+	modifiers := []ff.ModifierFunc{}
+	if f != nil {
+		modifiers = append(modifiers, f)
+	}
+
+	result, err := ff.Apply(&gofeed.Feed{Items: []*gofeed.Item{testItem}}, nil, modifiers)
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(testItem, result.Items[0]))
+}

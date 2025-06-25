@@ -6,6 +6,7 @@ import (
 
 	"github.com/mmcdole/gofeed"
 	"github.com/nakatanakatana/ff"
+	"gotest.tools/v3/assert"
 )
 
 type filterFuncTest struct {
@@ -271,4 +272,39 @@ func TestFilterDoAllFilterFuncAndCondition(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCreateFilterWithInvalidDate(t *testing.T) {
+	t.Parallel()
+
+	filtersMap := ff.CreateFiltersMap(nil, nil)
+	testItem := createTestItem()
+
+	for _, layout := range []string{"2006-01-02", "invalid-layout"} {
+		layout := layout
+		t.Run(layout, func(t *testing.T) {
+			t.Parallel()
+
+			ctx := context.Background()
+
+			f := ff.CreateFilter("updated_at.from", "2021-07-07T12:00:00+09:00", filtersMap)
+			assert.Equal(t, true, f(ctx, testItem))
+		})
+	}
+}
+
+func TestCreateFilterWithTimezone(t *testing.T) {
+	t.Parallel()
+
+	filtersMap := ff.CreateFiltersMap(nil, nil)
+	testItem := createTestItem() // UTC
+
+	ctx := context.Background()
+
+	// JST (+09:00) is ahead of UTC
+	f := ff.CreateFilter("updated_at.from", "2021-07-11T08:00:00+09:00", filtersMap)
+	assert.Equal(t, true, f(ctx, testItem))
+
+	f = ff.CreateFilter("updated_at.from", "2021-07-11T10:00:00+09:00", filtersMap)
+	assert.Equal(t, false, f(ctx, testItem))
 }

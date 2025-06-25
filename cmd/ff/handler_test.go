@@ -167,3 +167,71 @@ func TestHandlerSuccess(t *testing.T) {
 		})
 	}
 }
+
+func TestHandlerMethodNotAllowed(t *testing.T) {
+	t.Parallel()
+
+	handler := createHandler(ff.CreateFiltersMap(nil, nil), ff.CreateModifierMap())
+
+	req := httptest.NewRequest(http.MethodPost, "/?url=http://example.com", nil)
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	assert.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+}
+
+func TestHandlerHeadRequest(t *testing.T) {
+	t.Parallel()
+
+	handler := createHandler(ff.CreateFiltersMap(nil, nil), ff.CreateModifierMap())
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+<channel>
+  <title>RSS Title</title>
+</channel>
+</rss>`))
+	}))
+	defer mockServer.Close()
+
+	requestURL := "/?url=" + mockServer.URL
+	req := httptest.NewRequest(http.MethodHead, requestURL, nil)
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "", rec.Body.String())
+}
+
+func TestHandlerWithMultipleQueries(t *testing.T) {
+	t.Parallel()
+
+	handler := createHandler(ff.CreateFiltersMap(nil, nil), ff.CreateModifierMap())
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+<channel>
+  <title>RSS Title</title>
+  <item><title>First item</title><description>Keep this</description></item>
+  <item><title>Second item</title><description>Remove this</description></item>
+</channel>
+</rss>`))
+	}))
+	defer mockServer.Close()
+
+	requestURL := "/?url=%s&title.contains=First&description.not_contains=Remove"
+	req := httptest.NewRequest(http.MethodGet, strings.ReplaceAll(requestURL, "%s", mockServer.URL), nil)
+	rec := httptest.NewRecorder()
+
+	handler(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Assert(t, cmp.Contains(rec.Body.String(), "First item"))
+	assert.Assert(t, !strings.Contains(rec.Body.String(), "Second item"))
+}
