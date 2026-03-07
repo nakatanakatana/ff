@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -88,7 +89,7 @@ func TestHandlerInvalidRequest(t *testing.T) {
 				requestURL = strings.ReplaceAll(requestURL, "%s", mockServer.URL)
 			}
 
-			req := httptest.NewRequest(http.MethodGet, requestURL, nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, requestURL, nil)
 			rec := httptest.NewRecorder()
 
 			handler(rec, req)
@@ -157,7 +158,7 @@ func TestHandlerSuccess(t *testing.T) {
 
 			requestURL := strings.ReplaceAll(tc.requestURL, "%s", mockServer.URL)
 
-			req := httptest.NewRequest(http.MethodGet, requestURL, nil)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, requestURL, nil)
 			rec := httptest.NewRecorder()
 
 			handler(rec, req)
@@ -173,7 +174,7 @@ func TestHandlerMethodNotAllowed(t *testing.T) {
 
 	handler := createHandler(ff.CreateFiltersMap(nil, nil), ff.CreateModifierMap())
 
-	req := httptest.NewRequest(http.MethodPost, "/?url=http://example.com", nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/?url=http://example.com", nil)
 	rec := httptest.NewRecorder()
 
 	handler(rec, req)
@@ -198,7 +199,7 @@ func TestHandlerHeadRequest(t *testing.T) {
 	defer mockServer.Close()
 
 	requestURL := "/?url=" + mockServer.URL
-	req := httptest.NewRequest(http.MethodHead, requestURL, nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodHead, requestURL, nil)
 	rec := httptest.NewRecorder()
 
 	handler(rec, req)
@@ -226,7 +227,8 @@ func TestHandlerWithMultipleQueries(t *testing.T) {
 	defer mockServer.Close()
 
 	requestURL := "/?url=%s&title.contains=First&description.not_contains=Remove"
-	req := httptest.NewRequest(http.MethodGet, strings.ReplaceAll(requestURL, "%s", mockServer.URL), nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet,
+		strings.ReplaceAll(requestURL, "%s", mockServer.URL), nil)
 	rec := httptest.NewRecorder()
 
 	handler(rec, req)

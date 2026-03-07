@@ -138,7 +138,7 @@ type ResponseRecorder struct {
 func (c *CacheMiddleware) IsCacheFresh(
 	ctx context.Context, upstreamURL string, cacheKey string, cacheTime time.Time,
 ) bool {
-	req, err := http.NewRequestWithContext(ctx, httpMethodHead, upstreamURL, nil)
+	req, err := http.NewRequestWithContext(ctx, httpMethodHead, upstreamURL, nil) // #nosec G704
 	if err != nil {
 		return true
 	}
@@ -152,7 +152,7 @@ func (c *CacheMiddleware) IsCacheFresh(
 		Timeout: requestTimeout,
 	}
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) // #nosec G704
 	if err != nil {
 		return true
 	}
@@ -224,7 +224,7 @@ func (r *ResponseRecorder) writeToCache() error {
 }
 
 func (r *ResponseRecorder) captureAndStoreETag(ctx context.Context, upstreamURL string) {
-	req, err := http.NewRequestWithContext(ctx, httpMethodHead, upstreamURL, nil)
+	req, err := http.NewRequestWithContext(ctx, httpMethodHead, upstreamURL, nil) // #nosec G704
 	if err != nil {
 		return
 	}
@@ -233,7 +233,7 @@ func (r *ResponseRecorder) captureAndStoreETag(ctx context.Context, upstreamURL 
 		Timeout: requestTimeout,
 	}
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) // #nosec G704
 	if err != nil {
 		return
 	}

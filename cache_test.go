@@ -35,7 +35,7 @@ func TestCacheMiddleware(t *testing.T) {
 	params.Set("url", "https://example.com/feed")
 	params.Set("title.contains", "test")
 
-	req := httptest.NewRequest(http.MethodGet, "/?"+params.Encode(), nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/?"+params.Encode(), nil)
 	w := httptest.NewRecorder()
 
 	middleware.ServeHTTP(w, req)
@@ -268,7 +268,7 @@ func TestCacheMiddlewareWithTempDir(t *testing.T) {
 	params := url.Values{}
 	params.Set("url", "https://example.com/test")
 
-	req := httptest.NewRequest(http.MethodGet, "/?"+params.Encode(), nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/?"+params.Encode(), nil)
 	w := httptest.NewRecorder()
 
 	middleware.ServeHTTP(w, req)
@@ -303,7 +303,7 @@ func TestCacheMiddlewareErrorHandling(t *testing.T) {
 	params := url.Values{}
 	params.Set("url", "https://example.com/empty")
 
-	req := httptest.NewRequest(http.MethodGet, "/?"+params.Encode(), nil)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/?"+params.Encode(), nil)
 	w := httptest.NewRecorder()
 
 	middleware.ServeHTTP(w, req)

@@ -262,7 +262,7 @@ func TestFilterDoAllFilterFuncAndCondition(t *testing.T) {
 				Items: []*gofeed.Item{testItem},
 			}
 
-			result, err := ff.Apply(testFeed, tt.filters, []ff.ModifierFunc{})
+			result, err := ff.Apply(context.Background(), testFeed, tt.filters, []ff.ModifierFunc{})
 			if err != nil {
 				t.Fail()
 			}
