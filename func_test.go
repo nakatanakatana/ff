@@ -1,6 +1,7 @@
 package ff_test
 
 import (
+	"context"
 	"net/url"
 	"testing"
 	"time"
@@ -125,7 +126,7 @@ func TestFilterAndModifier(t *testing.T) {
 			testFeed := &gofeed.Feed{
 				Items: []*gofeed.Item{testItem},
 			}
-			result, err := ff.Apply(testFeed, tt.filters, tt.modifiers)
+			result, err := ff.Apply(context.Background(), testFeed, tt.filters, tt.modifiers)
 			assert.NilError(t, err)
 			assert.Check(t, is.Len(result.Items, tt.expectItemLen))
 

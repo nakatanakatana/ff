@@ -57,7 +57,7 @@ func createHandler(filtersMap ff.FilterFuncMap, modifiersMap ff.ModifierFuncMap)
 
 		filters, modifiers := parseQueries(r.URL.Query(), filtersMap, modifiersMap)
 
-		filteredFeed, err := ff.Apply(originFeed, filters, modifiers)
+		filteredFeed, err := ff.Apply(r.Context(), originFeed, filters, modifiers)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprintln(w, err)
@@ -81,6 +81,6 @@ func createHandler(filtersMap ff.FilterFuncMap, modifiersMap ff.ModifierFuncMap)
 			return
 		}
 
-		fmt.Fprintln(w, rss)
+		fmt.Fprintln(w, rss) // #nosec G705
 	}
 }

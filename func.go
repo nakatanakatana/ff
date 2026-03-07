@@ -37,8 +37,7 @@ func ParseQueries(queries url.Values,
 	return filters, modifiers
 }
 
-func Apply(f *gofeed.Feed, ff []FilterFunc, mf []ModifierFunc) (*gofeed.Feed, error) {
-	ctx := context.Background()
+func Apply(ctx context.Context, f *gofeed.Feed, ff []FilterFunc, mf []ModifierFunc) (*gofeed.Feed, error) {
 	items := make([]*gofeed.Item, len(f.Items))
 	count := 0
 

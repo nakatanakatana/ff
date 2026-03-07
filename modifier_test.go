@@ -1,6 +1,7 @@
 package ff_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/mmcdole/gofeed"
@@ -69,7 +70,7 @@ func TestCreateModifierWithNonExistentField(t *testing.T) {
 		modifiers = append(modifiers, f)
 	}
 
-	result, err := ff.Apply(&gofeed.Feed{Items: []*gofeed.Item{testItem}}, nil, modifiers)
+	result, err := ff.Apply(context.Background(), &gofeed.Feed{Items: []*gofeed.Item{testItem}}, nil, modifiers)
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(testItem, result.Items[0]))
 }
