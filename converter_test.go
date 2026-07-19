@@ -18,7 +18,6 @@ func TestConvert(t *testing.T) {
 		{url: "https://menthas.com/all/rss"},
 		{url: "https://zenn.dev/feed"},
 	} {
-		tt := tt
 		t.Run(tt.url, func(t *testing.T) {
 			t.Parallel()
 

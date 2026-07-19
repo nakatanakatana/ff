@@ -43,8 +43,6 @@ func TestCreateModifier(t *testing.T) {
 		{key: "rm.description", value: "", expect: expectRemoveDescription},
 		{key: "rm.content", value: "", expect: expectRemoveContent},
 	} {
-		tt := tt
-
 		t.Run(tt.key, func(t *testing.T) {
 			t.Parallel()
 
