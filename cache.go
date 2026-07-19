@@ -192,12 +192,14 @@ func (c *CacheMiddleware) StoreETag(cacheKey string, etag string) {
 
 	c.etagMutex.Lock()
 	defer c.etagMutex.Unlock()
+
 	c.etags[cacheKey] = etag
 }
 
 func (c *CacheMiddleware) RemoveETag(cacheKey string) {
 	c.etagMutex.Lock()
 	defer c.etagMutex.Unlock()
+
 	delete(c.etags, cacheKey)
 }
 

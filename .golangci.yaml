@@ -36,7 +36,7 @@ linters:
     - godox
     - goheader
     - gomoddirectives
-    - gomodguard
+    - gomodguard_v2
     - goprintffuncname
     - gosec
     - gosmopolitan
@@ -93,7 +93,7 @@ linters:
     - wastedassign
     - whitespace
     - wrapcheck
-    - wsl
+    - wsl_v5
     - zerologlint
   disable:
     - depguard
@@ -105,6 +105,10 @@ linters:
       checks:
         - all
         - -ST1005
+    wsl_v5:
+      allow-first-in-block: true
+      allow-whole-block: false
+      branch-max-lines: 2
   exclusions:
     generated: lax
     presets:
@@ -116,6 +120,10 @@ linters:
       - third_party$
       - builtin$
       - examples$
+    rules:
+      - path: _test\.go
+        linters:
+          - goconst
 formatters:
   enable:
     - gci
