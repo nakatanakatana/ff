@@ -77,7 +77,6 @@ func TestCreateFilter(t *testing.T) {
 		{key: "published_at.from", value: "2021-06-30T12:00:00+09:00", expect: true},
 		{key: "published_at.from", value: "2021-07-07T12:00:00+09:00", expect: false},
 	} {
-		tt := tt
 		t.Run(tt.key, func(t *testing.T) {
 			t.Parallel()
 
@@ -127,7 +126,6 @@ func TestCreateFilterItemHasNil(t *testing.T) {
 		{key: "published_at.from", value: "2021-06-30T12:00:00+09:00", expect: true},
 		{key: "published_at.from", value: "2021-07-07T12:00:00+09:00", expect: true},
 	} {
-		tt := tt
 		t.Run(tt.key, func(t *testing.T) {
 			t.Parallel()
 
@@ -160,7 +158,6 @@ func TestAuthorMute(t *testing.T) {
 		{"contains title", []string{"hoge", "fuga", "title"}, false},
 		{"contains multiple", []string{"hoge", "name", "title"}, false},
 	} {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -194,7 +191,6 @@ func TestAuthorMuteItemHasNil(t *testing.T) {
 		{"contains link", []string{"github"}, false},
 		{"empty author ignore", []string{"name"}, true},
 	} {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -224,7 +220,6 @@ func TestLinkMute(t *testing.T) {
 		{"all targets don't contain link", []string{"abc", "def", "ghi"}, true},
 		{"partial targets contains link", []string{"abc", "def", "git"}, false},
 	} {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -253,8 +248,6 @@ func TestFilterDoAllFilterFuncAndCondition(t *testing.T) {
 		{"all match", []ff.FilterFunc{ff.TitleEqual("title"), ff.DescriptionEqual("description")}, 1},
 		{"partial unmatch", []ff.FilterFunc{ff.TitleEqual("ti"), ff.TitleEqual("title")}, 0},
 	} {
-		tt := tt
-
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -281,7 +274,6 @@ func TestCreateFilterWithInvalidDate(t *testing.T) {
 	testItem := createTestItem()
 
 	for _, layout := range []string{"2006-01-02", "invalid-layout"} {
-		layout := layout
 		t.Run(layout, func(t *testing.T) {
 			t.Parallel()
 

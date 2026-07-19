@@ -44,7 +44,6 @@ func TestParseQueries(t *testing.T) {
 		{"modifierOnly", "https://t.io/?rm.description", 0, 1},
 		{"filterAndModifier multiple", "https://t.io/?title.equal=title&latest&rm.content", 2, 1},
 	} {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -118,8 +117,6 @@ func TestFilterAndModifier(t *testing.T) {
 			nil,
 		},
 	} {
-		tt := tt
-
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
